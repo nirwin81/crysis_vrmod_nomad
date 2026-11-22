@@ -1081,42 +1081,42 @@ namespace hooks {
 	}
 
 	template <typename T, typename R, typename... Args>
-	void InstallVirtualFunctionHook(const std::string &name, T* instance, R (T::*func)(Args...), R (__fastcall *detour)(T*, Args...))
+	void InstallVirtualFunctionHook(const char* name, T* instance, R (T::*func)(Args...), R (__fastcall *detour)(T*, Args...))
 	{
 		int vtableIndex = getVTableIndex(reinterpret_cast<R (T::*)(Args...)>(func));
-		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name.c_str());
+		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name);
 		InstallVirtualFunctionHook(name, (void*)instance, vtableIndex, (void*)detour);
 	}
 
 	template <typename T, typename R, typename... Args>
-	void InstallVirtualFunctionHook(const std::string &name, T* instance, R (T::*func)(Args...), R (__fastcall *detour)(T*, void*, Args...))
+	void InstallVirtualFunctionHook(const char* name, T* instance, R (T::*func)(Args...), R (__fastcall *detour)(T*, void*, Args...))
 	{
 		int vtableIndex = getVTableIndex(func);
-		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name.c_str());
+		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name);
 		InstallVirtualFunctionHook(name, (void*)instance, vtableIndex, (void*)detour);
 	}
 
 	template <typename T, typename R, typename... Args>
-	void InstallVirtualFunctionHook(const std::string &name, T* instance, R (T::*func)(Args...) const, R (__fastcall *detour)(T*, void*, Args...))
+	void InstallVirtualFunctionHook(const char* name, T* instance, R (T::*func)(Args...) const, R (__fastcall *detour)(T*, void*, Args...))
 	{
 		int vtableIndex = getVTableIndex(reinterpret_cast<R (T::*)(Args...)>(func));
-		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name.c_str());
+		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name);
 		InstallVirtualFunctionHook(name, (void*)instance, vtableIndex, (void*)detour);
 	}
 
 	template <typename T, typename R, typename... Args>
-	void InstallVirtualFunctionHook(const std::string &name, T* instance, R (T::*func)(Args...) const, R (__fastcall *detour)(T*, Args...))
+	void InstallVirtualFunctionHook(const char* name, T* instance, R (T::*func)(Args...) const, R (__fastcall *detour)(T*, Args...))
 	{
 		int vtableIndex = getVTableIndex(reinterpret_cast<R (T::*)(Args...)>(func));
-		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name.c_str());
+		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name);
 		InstallVirtualFunctionHook(name, (void*)instance, vtableIndex, (void*)detour);
 	}
 
 	template <typename T, typename R, typename... Args>
-	void InstallVirtualFunctionHook(const std::string &name, T* instance, R (__stdcall T::*func)(Args...), R (__stdcall *detour)(T*, Args...))
+	void InstallVirtualFunctionHook(const char* name, T* instance, R (__stdcall T::*func)(Args...), R (__stdcall *detour)(T*, Args...))
 	{
 		int vtableIndex = getVTableIndex(func);
-		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name.c_str());
+		CryLogAlways("Found vtable index %i for hook %s", vtableIndex, name);
 		InstallVirtualFunctionHook(name, (void*)instance, vtableIndex, (void*)detour);
 	}
 #endif
