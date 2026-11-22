@@ -14,6 +14,8 @@ The mod uses OpenXR and was successfully tested with the SteamVR and Oculus runt
 
 ## Installation
 
+NOTE: This will probably conflict with any installation of Tholger's mod. Probably can't have both installed and usable simultaneously.
+
 Download and install Crysis. *Note*: it is *not necessary* to run the game flat screen, and in fact it may even fail to run for you at all. This does not matter! Just proceed with the installation and play in VR :)
 Head over to the mod's [Releases](https://github.com/fholger/crysis_vrmod/releases) and
 find the latest release at the top of the page. Under the "Assets" section find and download the `crysis-vrmod-x.y.exe` installer. Ignore all other files.
@@ -52,6 +54,7 @@ Be warned that it may be unstable and contain more bugs than the stable releases
 
 When you boot up the VR mod, you will notice a number of additional buttons in the lower left of the menu. Click on the
 "VR Settings" to open a menu where you can configure various aspects of the VR playing experience to your liking.
+Added configuration for menu and map placement in the world to help those with vision difficulties.
 
 ## Playing
 

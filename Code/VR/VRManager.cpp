@@ -738,7 +738,7 @@ void VRManager::Update()
 			m_wasInMenu = true;
 			RecalibrateView();
 		}
-		SetHudInFrontOfPlayer();
+		SetHudInFrontOfPlayer(g_pGameCVars->vr_menu_distance, g_pGameCVars->vr_menu_size, g_pGameCVars->vr_menu_height, g_pGameCVars->vr_menu_offset);
 		return;
 	}
 
@@ -769,6 +769,8 @@ void VRManager::Update()
 		else
 			SetHudAttachedToHead();
 	}
+	else if (showHudFixed)
+		SetHudInFrontOfPlayer(g_pGameCVars->vr_map_distance, g_pGameCVars->vr_map_size);
 	else
 		SetHudInFrontOfPlayer();
 }
@@ -791,10 +793,8 @@ bool VRManager::RecalibrateView()
 	// recalibrate menu positioning
 	angles.x = angles.y = 0;
 	//angles.z += gf_PI;
+	// store the head-level origin and facing only; the distance is applied in SetHudInFrontOfPlayer
 	m_fixedHudTransform.SetRotationXYZ(angles, hmdTransform.GetTranslation());
-	Vec3 dir = m_fixedHudTransform.GetColumn1();
-	Vec3 pos = m_fixedHudTransform.GetTranslation() + 5 * dir;
-	m_fixedHudTransform.SetTranslation(pos);
 
 	return true;
 }
@@ -802,7 +802,7 @@ bool VRManager::RecalibrateView()
 extern XrPosef CrysisToOpenXR(const Matrix34& transform);
 extern Matrix34 OpenXRToCrysis(const XrQuaternionf& a, const XrVector3f& b);
 
-void VRManager::SetHudInFrontOfPlayer()
+void VRManager::SetHudInFrontOfPlayer(float distance, float width, float height, float horizontal)
 {
 	if (!m_fixedPositionInitialized)
 	{
@@ -810,10 +810,21 @@ void VRManager::SetHudInFrontOfPlayer()
 			m_fixedPositionInitialized = true;
 	}
 
-	gXR->SetHudPose(CrysisToOpenXR(m_fixedHudTransform));
+	distance = clamp_tpl(distance, 0.3f, 20.f);
+	width = clamp_tpl(width, 0.1f, 20.f);
+	height = clamp_tpl(height, -10.f, 10.f);
+	horizontal = clamp_tpl(horizontal, -10.f, 10.f);
+
+	// m_fixedHudTransform only carries yaw, so its columns are right (0), forward (1) and world up (2)
+	Matrix34 hudTransform = m_fixedHudTransform;
+	hudTransform.SetTranslation(m_fixedHudTransform.GetTranslation()
+		+ horizontal * m_fixedHudTransform.GetColumn0()
+		+ distance * m_fixedHudTransform.GetColumn1()
+		+ height * m_fixedHudTransform.GetColumn2());
+	gXR->SetHudPose(CrysisToOpenXR(hudTransform));
 
 	Vec2i renderSize = GetRenderSize();
-	gXR->SetHudSize(4.f, 4.f * renderSize.y / renderSize.x);
+	gXR->SetHudSize(width, width * renderSize.y / renderSize.x);
 }
 
 void VRManager::SetHudAttachedToHead()

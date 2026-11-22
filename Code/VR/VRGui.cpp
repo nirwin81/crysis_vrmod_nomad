@@ -260,6 +260,28 @@ void VRGui::DrawSettingsMenu()
 		g_pGameCVars->vr_disable_camerashakes = disableScreenShake;
 	}
 
+	if (ImGui::CollapsingHeader("Menu & map placement"))
+	{
+		ImGui::SliderFloat("Menu distance (m)", &g_pGameCVars->vr_menu_distance, 0.5f, 6.f);
+		ImGui::SetItemTooltip("How far away the main/pause menu, console and loading screens are shown");
+		ImGui::SliderFloat("Menu width (m)", &g_pGameCVars->vr_menu_size, 0.5f, 5.f);
+		ImGui::SliderFloat("Menu height offset (m)", &g_pGameCVars->vr_menu_height, -2.f, 2.f);
+		ImGui::SetItemTooltip("Moves the menu up (positive) or down (negative) relative to eye level");
+		ImGui::SliderFloat("Menu horizontal offset (m)", &g_pGameCVars->vr_menu_offset, -2.f, 2.f);
+		ImGui::SetItemTooltip("Moves the menu right (positive) or left (negative)");
+
+		ImGui::SliderFloat("Map distance (m)", &g_pGameCVars->vr_map_distance, 0.5f, 6.f);
+		ImGui::SetItemTooltip("How far away the PDA map and other fullscreen HUD screens are shown");
+		ImGui::SliderFloat("Map width (m)", &g_pGameCVars->vr_map_size, 0.5f, 5.f);
+
+		if (ImGui::Button("Reset to original (5 m / 4 m)"))
+		{
+			g_pGameCVars->vr_menu_distance = g_pGameCVars->vr_map_distance = 5.f;
+			g_pGameCVars->vr_menu_size = g_pGameCVars->vr_map_size = 4.f;
+			g_pGameCVars->vr_menu_height = g_pGameCVars->vr_menu_offset = 0.f;
+		}
+	}
+
 	if (ImGui::CollapsingHeader("Miscellaneous"))
 	{
 		ImGui::Text("Mirrored eye");

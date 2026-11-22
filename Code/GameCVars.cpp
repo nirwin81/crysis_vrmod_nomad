@@ -900,6 +900,12 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_vehicle_invert_y", &vr_vehicle_invert_y, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Invert look Y-axis for vehicles and mounted guns");
 	pConsole->Register("vr_welcome_message", &vr_welcome_message, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Show the VR mod welcome message");
 	pConsole->Register("vr_hide_hud", &vr_hide_hud, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Hide the ingame HUD");
+	pConsole->Register("vr_menu_distance", &vr_menu_distance, 2.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Distance in meters from the player at which the menus, console and loading screens are displayed (original: 5)");
+	pConsole->Register("vr_menu_size", &vr_menu_size, 3.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Width in meters of the menu screen (original: 4)");
+	pConsole->Register("vr_menu_height", &vr_menu_height, 1.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Vertical offset in meters of the menu screen relative to eye level (positive = up)");
+	pConsole->Register("vr_menu_offset", &vr_menu_offset, 0.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Horizontal offset in meters of the menu screen (positive = right)");
+	pConsole->Register("vr_map_distance", &vr_map_distance, 2.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Distance in meters from the player at which the PDA map and other fullscreen HUD screens are displayed (original: 5)");
+	pConsole->Register("vr_map_size", &vr_map_size, 2.2f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Width in meters of the PDA map screen (original: 4)");
 	pConsole->Register("vr_melee_trigger_velocity", &vr_melee_trigger_velocity, 2.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The controller velocity threshold to trigger a melee attack");
 	pConsole->Register("vr_bhaptics_strength", &vr_bhaptics_strength, 1.0f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The strength of bHaptics effect vibrations");
 	pConsole->Register("vr_increase_view_dist", &vr_increase_view_dist, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, increase view distance");
@@ -925,6 +931,12 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_cutscenes_angle_snap", true);
 	pConsole->UnregisterVariable("vr_cinema_3d", true);
 	pConsole->UnregisterVariable("vr_cinema_3d_eye_dist", true);
+	pConsole->UnregisterVariable("vr_menu_distance", true);
+	pConsole->UnregisterVariable("vr_menu_size", true);
+	pConsole->UnregisterVariable("vr_menu_height", true);
+	pConsole->UnregisterVariable("vr_menu_offset", true);
+	pConsole->UnregisterVariable("vr_map_distance", true);
+	pConsole->UnregisterVariable("vr_map_size", true);
 }
 
 //------------------------------------------------------------------------

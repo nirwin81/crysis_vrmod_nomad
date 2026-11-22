@@ -465,6 +465,12 @@ struct SCVars
 	int vr_vehicle_invert_y;
 	int vr_welcome_message;
 	int vr_hide_hud;
+	float vr_menu_distance;
+	float vr_menu_size;
+	float vr_menu_height;
+	float vr_menu_offset;
+	float vr_map_distance;
+	float vr_map_size;
 	float vr_melee_trigger_velocity;
 	float vr_bhaptics_strength;
 
