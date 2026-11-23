@@ -176,6 +176,20 @@ void OpenXRInput::Update()
 
 	float pointerX, pointerY;
 	m_pointerOnHud = CalcControllerHudIntersection(g_pGameCVars->vr_weapon_hand, pointerX, pointerY);
+	// While the map is open, it is dragged with the off hand. The drag follows the HUD cursor, so let the off hand
+	// drive the cursor while it is grabbing, or while it points at the map and the weapon hand does not.
+	m_offHandPointerOnHud = false;
+	if (IsMapOpen())
+	{
+		float offX, offY;
+		m_offHandPointerOnHud = CalcControllerHudIntersection(1 - g_pGameCVars->vr_weapon_hand, offX, offY);
+		if (m_offHandPointerOnHud && (m_mapGrabActive || !m_pointerOnHud))
+		{
+			pointerX = offX;
+			pointerY = offY;
+			m_pointerOnHud = true;
+		}
+	}
 	if (m_pointerOnHud)
 	{
 		m_hudMousePosSamples[m_curMouseSampleIdx].x = pointerX;
@@ -1067,13 +1081,13 @@ void OpenXRInput::UpdateMapGrab()
 	{
 		XrActionStateBoolean state{ XR_TYPE_ACTION_STATE_BOOLEAN };
 		XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO };
-		getInfo.action = m_menuClick.handle;
+		getInfo.action = m_use.handle; // off hand trigger
 		if (XR_SUCCEEDED(xrGetActionStateBoolean(m_session, &getInfo, &state)))
 			triggerHeld = state.isActive && state.currentState;
 	}
 
-	// a grab starts only while pointing at the map, but continues if the pointer slides off it
-	bool grab = mapOpen && triggerHeld && (m_mapGrabActive || m_pointerOnHud);
+	// a grab starts only while the off hand points at the map, but continues if the pointer slides off it
+	bool grab = mapOpen && triggerHeld && (m_mapGrabActive || m_offHandPointerOnHud);
 	if (grab != m_mapGrabActive)
 	{
 		if (mapOpen)

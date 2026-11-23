@@ -25,4 +25,4 @@ In the VR settings, you can also switch back to holding the button, or show the 
 ## Menu and objectives
 Pressing the off hand's B/Y button brings up the game's menu. If you instead hold the button down, you will see an overview of your current objectives and the map of the island. The map stays open until you press B/Y again.
 
-While the map is open, push the right thumbstick up or down to zoom in or out. To move the map around, point at it with your main hand, hold the trigger and drag.
+While the map is open, push the right thumbstick up or down to zoom in or out. To move the map around, point at it with your off hand, hold that hand's trigger and drag.

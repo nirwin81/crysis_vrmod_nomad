@@ -98,6 +98,7 @@ private:
 	Vec3 m_quickMenuInitialHandPosition;
 
 	bool m_pointerOnHud = false;
+	bool m_offHandPointerOnHud = false;
 	bool m_mapGrabActive = false;
 	bool IsMapOpen() const;
 	void UpdateMapGrab();
