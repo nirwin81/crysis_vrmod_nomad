@@ -474,6 +474,8 @@ struct SCVars
 	float vr_menu_offset;
 	float vr_map_distance;
 	float vr_map_size;
+	float vr_map_height;
+	float vr_map_offset;
 	int vr_map_toggle;
 	float vr_melee_trigger_velocity;
 	float vr_bhaptics_strength;

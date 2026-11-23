@@ -294,12 +294,17 @@ void VRGui::DrawSettingsMenu()
 		ImGui::SliderFloat("Map distance (m)", &g_pGameCVars->vr_map_distance, 0.5f, 6.f);
 		ImGui::SetItemTooltip("How far away the PDA map and other fullscreen HUD screens are shown");
 		ImGui::SliderFloat("Map width (m)", &g_pGameCVars->vr_map_size, 0.5f, 5.f);
+		ImGui::SliderFloat("Map height offset (m)", &g_pGameCVars->vr_map_height, -2.f, 2.f);
+		ImGui::SetItemTooltip("Moves the objectives/map screen up (positive) or down (negative) relative to eye level");
+		ImGui::SliderFloat("Map horizontal offset (m)", &g_pGameCVars->vr_map_offset, -2.f, 2.f);
+		ImGui::SetItemTooltip("Moves the objectives/map screen right (positive) or left (negative)");
 
 		if (ImGui::Button("Reset to original (5 m / 4 m)"))
 		{
 			g_pGameCVars->vr_menu_distance = g_pGameCVars->vr_map_distance = 5.f;
 			g_pGameCVars->vr_menu_size = g_pGameCVars->vr_map_size = 4.f;
 			g_pGameCVars->vr_menu_height = g_pGameCVars->vr_menu_offset = 0.f;
+			g_pGameCVars->vr_map_height = g_pGameCVars->vr_map_offset = 0.f;
 		}
 	}
 

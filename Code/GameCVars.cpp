@@ -909,6 +909,8 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_menu_offset", &vr_menu_offset, 0.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Horizontal offset in meters of the menu screen (positive = right)");
 	pConsole->Register("vr_map_distance", &vr_map_distance, 2.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Distance in meters from the player at which the PDA map and other fullscreen HUD screens are displayed (original: 5)");
 	pConsole->Register("vr_map_size", &vr_map_size, 2.2f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Width in meters of the PDA map screen (original: 4)");
+	pConsole->Register("vr_map_height", &vr_map_height, 0.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Vertical offset in meters of the objectives/map screen relative to eye level (positive = up)");
+	pConsole->Register("vr_map_offset", &vr_map_offset, 0.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Horizontal offset in meters of the objectives/map screen (positive = right)");
 	pConsole->Register("vr_map_toggle", &vr_map_toggle, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, holding the menu button opens the objectives/map and it stays open until the button is pressed again (single player)");
 	pConsole->Register("vr_melee_trigger_velocity", &vr_melee_trigger_velocity, 2.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The controller velocity threshold to trigger a melee attack");
 	pConsole->Register("vr_bhaptics_strength", &vr_bhaptics_strength, 1.0f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The strength of bHaptics effect vibrations");
@@ -944,6 +946,8 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_menu_offset", true);
 	pConsole->UnregisterVariable("vr_map_distance", true);
 	pConsole->UnregisterVariable("vr_map_size", true);
+	pConsole->UnregisterVariable("vr_map_height", true);
+	pConsole->UnregisterVariable("vr_map_offset", true);
 	pConsole->UnregisterVariable("vr_map_toggle", true);
 }
 

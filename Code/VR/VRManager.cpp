@@ -786,7 +786,7 @@ void VRManager::Update()
 			SetHudAttachedToHead();
 	}
 	else if (showHudFixed)
-		SetHudInFrontOfPlayer(g_pGameCVars->vr_map_distance, g_pGameCVars->vr_map_size);
+		SetHudInFrontOfPlayer(g_pGameCVars->vr_map_distance, g_pGameCVars->vr_map_size, g_pGameCVars->vr_map_height, g_pGameCVars->vr_map_offset);
 	else
 		SetHudInFrontOfPlayer();
 }
