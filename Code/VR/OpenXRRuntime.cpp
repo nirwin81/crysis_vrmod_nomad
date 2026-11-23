@@ -316,6 +316,8 @@ void OpenXRRuntime::AwaitFrame()
 	XR_CheckResult(result, "getting eye views", m_instance);
 
 	m_posesValid = viewState.viewStateFlags & (XR_VIEW_STATE_POSITION_TRACKED_BIT | XR_VIEW_STATE_ORIENTATION_TRACKED_BIT);
+	const XrViewStateFlags fullyTracked = XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT | XR_VIEW_STATE_POSITION_TRACKED_BIT | XR_VIEW_STATE_ORIENTATION_TRACKED_BIT;
+	m_posesFullyTracked = (viewState.viewStateFlags & fullyTracked) == fullyTracked;
 }
 
 void OpenXRRuntime::FinishFrame()
@@ -646,6 +648,7 @@ void OpenXRRuntime::HandleSessionStateChange(XrEventDataSessionStateChanged* eve
 	case XR_SESSION_STATE_FOCUSED:
 		CryLogAlways("XR session state changed to focused");
 		m_sessionActive = true;
+		m_focusRegained = true;
 		break;
 
 	case XR_SESSION_STATE_IDLE:

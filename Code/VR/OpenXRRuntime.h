@@ -40,6 +40,9 @@ public:
 	bool IsHudVisible() const { return m_hudVisible; }
 
 	bool ArePosesValid() const { return m_posesValid; }
+	bool ArePosesFullyTracked() const { return m_posesFullyTracked; }
+	// returns true once after the session regained focus (e.g. headset put on, system overlay closed)
+	bool ConsumeFocusRegained() { bool r = m_focusRegained; m_focusRegained = false; return r; }
 
 	bool HasReverbG2BindingsExtension() const;
 	bool HasSteamFrameBindingsExtension() const;
@@ -57,6 +60,8 @@ private:
 	XrTime m_predictedNextFrameDisplayTime = 0;
 	XrView m_renderViews[2] = {};
 	bool m_posesValid = false;
+	bool m_posesFullyTracked = false;
+	bool m_focusRegained = false;
 	XrSwapchain m_stereoSwapchain = XR_NULL_HANDLE;
 	int m_stereoWidth = 0;
 	int m_stereoHeight = 0;

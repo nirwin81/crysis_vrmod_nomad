@@ -160,6 +160,7 @@ private:
 	float m_hmdReferenceHeight = 0;
 
 	bool m_wasInMenu = false;
+	bool m_menuAnchored = false;
 
 	bool m_offHandFollowsWeapon = false;
 

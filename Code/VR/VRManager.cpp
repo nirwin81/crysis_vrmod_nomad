@@ -829,12 +829,24 @@ void VRManager::Update()
 
 	gXR->SetHudVisibility(true);
 
+	bool focusRegained = gXR->ConsumeFocusRegained();
 	if ((g_pGame->GetMenu()->IsMenuActive() || gEnv->pConsole->IsOpened()) || g_pGame->GetMenu()->IsLoadingScreenActive())
 	{
 		if (!m_wasInMenu)
 		{
 			m_wasInMenu = true;
-			RecalibrateView();
+			m_menuAnchored = false;
+		}
+		// The menu is anchored to where the head is when it opens. At game start, the first poses can arrive before the
+		// headset is properly tracked (or before it is on the user's head), which anchored the main menu at a wrong
+		// height and position for as long as it stayed open. So only anchor on a fully tracked pose, and re-anchor
+		// whenever the session regains focus (e.g. headset put on, system overlay closed).
+		if (focusRegained)
+			m_menuAnchored = false;
+		if (!m_menuAnchored && gXR->ArePosesFullyTracked() && RecalibrateView())
+		{
+			m_menuAnchored = true;
+			m_fixedPositionInitialized = true;
 		}
 		SetHudInFrontOfPlayer(g_pGameCVars->vr_menu_distance, g_pGameCVars->vr_menu_size, g_pGameCVars->vr_menu_height, g_pGameCVars->vr_menu_offset);
 		return;
