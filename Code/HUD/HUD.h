@@ -820,6 +820,7 @@ private:
 	bool m_bCutsceneCanBeAborted;
 	float m_fCutsceneSkipTimer;
 	float m_fBackPressedTime;
+	bool m_bBackClosedMap = false; // VR map toggle: the current back press closed the map, so ignore its release
 
 	SBuyMenuKeyLog m_buyMenuKeyLog;
 

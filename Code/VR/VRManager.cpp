@@ -357,6 +357,20 @@ void VRManager::ModifyViewCameraFor3DCinema(int eye, CCamera& cam)
 
 void VRManager::ModifyViewForBinoculars(SViewParams& view)
 {
+	if (g_pGameCVars->vr_binoculars_head_attached)
+	{
+		// look through the binoculars from the headset's position and orientation
+		Matrix34 hmd = Matrix34(gXR->GetHmdTransform());
+		Vec3 position = GetReferenceTransform() * (hmd.GetTranslation() - m_referencePosition);
+		Ang3 angles(hmd);
+		angles.z -= m_referenceYaw;
+		Matrix34 headTransform = GetBaseVRTransform(true) * Matrix34::CreateRotationXYZ(angles, position);
+
+		view.rotation = GetQuatFromMat33((Matrix33)headTransform);
+		view.position = headTransform.GetTranslation();
+		return;
+	}
+
 	float vr_binocular_size = 0.8f;
 	bool leftHanded = g_pGameCVars->vr_weapon_hand == 0;
 
@@ -756,6 +770,8 @@ void VRManager::Update()
 	{
 		if (g_pGame->GetIGameFramework()->GetIViewSystem()->IsPlayingCutScene())
 			SetHudInFrontOfPlayer();
+		else if (g_pGameCVars->vr_binoculars_head_attached)
+			SetHudForHeadBinoculars();
 		else
 			SetHudAttachedToOffHand();
 	}
@@ -842,6 +858,25 @@ void VRManager::SetHudAttachedToHead()
 
 	Vec2i renderSize = GetRenderSize();
 	gXR->SetHudSize(2.f, 2.f * renderSize.y / renderSize.x);
+}
+
+void VRManager::SetHudForHeadBinoculars()
+{
+	// head-locked screen 1 m in front of the eyes, 1 m wide (~53 degrees horizontal)
+	const float distance = 1.f;
+	const float width = 1.f;
+	m_fixedPositionInitialized = false;
+
+	Matrix34 hudTransform = Matrix34(gXR->GetHmdTransform());
+	Vec3 pos = hudTransform.GetTranslation();
+	Ang3 angles;
+	angles.SetAnglesXYZ((Matrix33)hudTransform);
+	hudTransform.SetRotationXYZ(angles, pos);
+	hudTransform.SetTranslation(pos + distance * hudTransform.GetColumn1());
+	gXR->SetHudPose(CrysisToOpenXR(hudTransform));
+
+	Vec2i renderSize = GetRenderSize();
+	gXR->SetHudSize(width, width * renderSize.y / renderSize.x);
 }
 
 void VRManager::SetHudAttachedToOffHand()

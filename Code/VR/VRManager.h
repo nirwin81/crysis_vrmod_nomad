@@ -78,6 +78,7 @@ public:
 	void SetHudInFrontOfPlayer(float distance = 5.f, float width = 4.f, float height = 0.f, float horizontal = 0.f);
 	void SetHudAttachedToHead();
 	void SetHudAttachedToOffHand();
+	void SetHudForHeadBinoculars();
 	void SetHudAttachedToWeaponHand();
 	void SetVehicleHud();
 

@@ -447,7 +447,18 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 				}
 				else if (actions.xi_binoculars == actionId)
 				{
-					if(activationMode == eAAM_OnPress && !m_pPlayer->GetActorStats()->mountedWeaponID)
+					if (g_pGameCVars->vr_binoculars_toggle)
+					{
+						// toggle mode: each press switches the binoculars on or off, release is ignored
+						if (activationMode == eAAM_OnPress)
+						{
+							if (binoculars)
+								m_pPlayer->SelectLastItem(false);
+							else if (!m_pPlayer->GetActorStats()->mountedWeaponID)
+								m_pPlayer->SelectItemByName("Binoculars", true);
+						}
+					}
+					else if(activationMode == eAAM_OnPress && !m_pPlayer->GetActorStats()->mountedWeaponID)
 					{
 						m_pPlayer->SelectItemByName("Binoculars", true);
 					}

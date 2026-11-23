@@ -97,6 +97,11 @@ private:
 	bool m_quickMenuActive = false;
 	Vec3 m_quickMenuInitialHandPosition;
 
+	bool m_pointerOnHud = false;
+	bool m_mapGrabActive = false;
+	bool IsMapOpen() const;
+	void UpdateMapGrab();
+
 	Vec3 m_controllerPos[2];
 	Quat m_controllerRot[2];
 

@@ -888,6 +888,9 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_vehicle_crosshair", &vr_vehicle_crosshair, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, displays a simple crosshair for vehicle weapons to assist with aiming in VR");
 	pConsole->Register("vr_cutscenes_angle_snap", &vr_cutscenes_angle_snap, 45, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Ignores camera rotation in cutscenes until the angle difference reaches this value, then snaps the angle to the new value");
 	pConsole->Register("vr_cinema_3d", &vr_cinema_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, whenever the game switches to a cinema mode (e.g. binoculars, weapon scopes or cutscenes), the cinema will render in 3D");
+	pConsole->Register("vr_binoculars_head_attached", &vr_binoculars_head_attached, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars view follows the head instead of the off-hand controller");
+	pConsole->Register("vr_binoculars_3d", &vr_binoculars_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars view is rendered in stereoscopic 3D instead of flat (uses vr_cinema_3d_eye_dist)");
+	pConsole->Register("vr_binoculars_toggle", &vr_binoculars_toggle, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars button toggles the binoculars on/off instead of having to be held");
 	pConsole->Register("vr_cinema_3d_eye_dist", &vr_cinema_3d_eye_dist, 0.032f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Determines the distance between the stereoscopic cameras in 3D cinema render mode");
 	pConsole->Register("vr_haptics_enabled", &vr_haptics_enabled, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Send haptic feedback to the motion controllers");
 	pConsole->Register("vr_haptics_strength", &vr_haptics_strength, 0.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Modify the strength of haptic feedback events");
@@ -906,6 +909,7 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_menu_offset", &vr_menu_offset, 0.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Horizontal offset in meters of the menu screen (positive = right)");
 	pConsole->Register("vr_map_distance", &vr_map_distance, 2.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Distance in meters from the player at which the PDA map and other fullscreen HUD screens are displayed (original: 5)");
 	pConsole->Register("vr_map_size", &vr_map_size, 2.2f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Width in meters of the PDA map screen (original: 4)");
+	pConsole->Register("vr_map_toggle", &vr_map_toggle, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, holding the menu button opens the objectives/map and it stays open until the button is pressed again (single player)");
 	pConsole->Register("vr_melee_trigger_velocity", &vr_melee_trigger_velocity, 2.5f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The controller velocity threshold to trigger a melee attack");
 	pConsole->Register("vr_bhaptics_strength", &vr_bhaptics_strength, 1.0f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "The strength of bHaptics effect vibrations");
 	pConsole->Register("vr_increase_view_dist", &vr_increase_view_dist, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, increase view distance");
@@ -931,12 +935,16 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_cutscenes_angle_snap", true);
 	pConsole->UnregisterVariable("vr_cinema_3d", true);
 	pConsole->UnregisterVariable("vr_cinema_3d_eye_dist", true);
+	pConsole->UnregisterVariable("vr_binoculars_head_attached", true);
+	pConsole->UnregisterVariable("vr_binoculars_3d", true);
+	pConsole->UnregisterVariable("vr_binoculars_toggle", true);
 	pConsole->UnregisterVariable("vr_menu_distance", true);
 	pConsole->UnregisterVariable("vr_menu_size", true);
 	pConsole->UnregisterVariable("vr_menu_height", true);
 	pConsole->UnregisterVariable("vr_menu_offset", true);
 	pConsole->UnregisterVariable("vr_map_distance", true);
 	pConsole->UnregisterVariable("vr_map_size", true);
+	pConsole->UnregisterVariable("vr_map_toggle", true);
 }
 
 //------------------------------------------------------------------------

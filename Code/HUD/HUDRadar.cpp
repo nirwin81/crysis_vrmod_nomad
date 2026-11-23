@@ -2277,6 +2277,73 @@ bool CHUDRadar::DragMap(Vec2 p_vDir)
 void CHUDRadar::SetDrag(bool enabled)
 {
 	m_bDragMap = enabled;
+	if (!enabled)
+		m_bVRMapGrab = false;
+}
+
+void CHUDRadar::VRZoomPDA(float stickValue, float frameTime)
+{
+	// exponential zoom so it feels equally fast at every zoom level: full stick doubles/halves the zoom in ~0.5s
+	const float zoomSpeed = 2.f;
+	m_fPDATempZoomFactor *= powf(2.f, stickValue * zoomSpeed * frameTime);
+	m_fPDATempZoomFactor = clamp_tpl(m_fPDATempZoomFactor, 1.0f, 8.0f);
+}
+
+static bool FlashValueToFloat(const SFlashVarValue& v, float& out)
+{
+	switch (v.GetType())
+	{
+	case SFlashVarValue::eDouble: out = (float)v.GetDouble(); return true;
+	case SFlashVarValue::eFloat: out = v.GetFloat(); return true;
+	case SFlashVarValue::eInt: out = (float)v.GetInt(); return true;
+	default: return false;
+	}
+}
+
+bool CHUDRadar::GetPDAPointerPos(Vec2& pos) const
+{
+	if (!m_flashPDA || !m_flashPDA->GetFlashPlayer())
+		return false;
+	IFlashPlayer* player = m_flashPDA->GetFlashPlayer();
+
+	// preferred: the cursor position in the map area's own coordinate space, which is what the map translation is expressed in
+	SFlashVarValue x(0.0), y(0.0);
+	if (player->GetVariable("Root.PDAArea.Map_M.MapArea._xmouse", &x) && player->GetVariable("Root.PDAArea.Map_M.MapArea._ymouse", &y)
+		&& FlashValueToFloat(x, pos.x) && FlashValueToFloat(y, pos.y))
+	{
+		return true;
+	}
+
+	// fallback: the cursor position in flash stage coordinates
+	float mouseX, mouseY;
+	gEnv->pHardwareMouse->GetHardwareMouseClientPosition(&mouseX, &mouseY);
+	int ix = (int)mouseX, iy = (int)mouseY;
+	player->ScreenToClient(ix, iy);
+	pos = Vec2((float)ix, (float)iy);
+	return true;
+}
+
+void CHUDRadar::VRSetMapGrab(bool active)
+{
+	if (active == m_bVRMapGrab)
+		return;
+
+	// enabling drag mode makes the map edges push back against the translation, so the map can't be dragged out of view
+	m_bVRMapGrab = active && GetPDAPointerPos(m_vVRGrabLastPointer);
+	m_bDragMap = m_bVRMapGrab;
+}
+
+void CHUDRadar::VRUpdateMapGrab()
+{
+	if (!m_bVRMapGrab)
+		return;
+
+	Vec2 pointer;
+	if (!GetPDAPointerPos(pointer))
+		return;
+
+	m_vPDATempMapTranslation += pointer - m_vVRGrabLastPointer;
+	m_vVRGrabLastPointer = pointer;
 }
 
 //-----------------------------------------------------------------------------------------------------

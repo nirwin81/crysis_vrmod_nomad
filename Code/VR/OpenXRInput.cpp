@@ -13,6 +13,7 @@
 #include "VRRenderer.h"
 #include "Weapon.h"
 #include "HUD/HUD.h"
+#include "HUD/HUDRadar.h"
 #include "Menus/FlashMenuObject.h"
 
 extern bool XR_CheckResult(XrResult result, const char* description, XrInstance instance = XR_NULL_HANDLE);
@@ -174,7 +175,8 @@ void OpenXRInput::Update()
 	UpdateControllerPoses();
 
 	float pointerX, pointerY;
-	if (CalcControllerHudIntersection(g_pGameCVars->vr_weapon_hand, pointerX, pointerY))
+	m_pointerOnHud = CalcControllerHudIntersection(g_pGameCVars->vr_weapon_hand, pointerX, pointerY);
+	if (m_pointerOnHud)
 	{
 		m_hudMousePosSamples[m_curMouseSampleIdx].x = pointerX;
 		m_hudMousePosSamples[m_curMouseSampleIdx].y = pointerY;
@@ -206,6 +208,7 @@ void OpenXRInput::Update()
 		UpdateMenuActions();
 		return;
 	}
+	UpdateMapGrab();
 	if (g_pGame->GetHUD() && g_pGame->GetHUD()->GetModalHUD())
 	{
 		UpdateHUDActions();
@@ -726,6 +729,18 @@ void OpenXRInput::UpdatePlayerMovement()
 			return;
 		}
 
+		if (inHud && IsMapOpen())
+		{
+			// the jump/crouch stick zooms the map instead: up = zoom in, down = zoom out
+			const float deadzone = 0.15f;
+			float zoom = 0;
+			if (fabsf(jumpCrouch) > deadzone)
+				zoom = (jumpCrouch > 0 ? 1.f : -1.f) * (fabsf(jumpCrouch) - deadzone) / (1.f - deadzone);
+			g_pGame->GetHUD()->GetRadar()->VRZoomPDA(zoom, gEnv->pTimer->GetRealFrameTime());
+			// the same stick axis would otherwise also nudge the HUD cursor
+			pitch = 0;
+		}
+
 		input->OnAction(g_pGameActions->xi_rotatepitch, eAAM_Always, pitch * (g_pGameCVars->vr_vehicle_invert_y ? -1 : 1));
 		input->OnAction(g_pGameActions->xi_rotateyaw, eAAM_Always, yaw);
 		return;
@@ -1008,6 +1023,38 @@ void OpenXRInput::UpdateControllerPoses()
 		m_controllerPos[i] = Vec3::CreateLerp(m_controllerPos[i], controllerPos, min(1.0f, lerpSpeed * distance));
 		m_controllerRot[i] = Quat::CreateSlerp(m_controllerRot[i], controllerRot, min(1.0f, lerpSpeed * angleDiff));
 	}
+}
+
+bool OpenXRInput::IsMapOpen() const
+{
+	CHUD* hud = g_pGame->GetHUD();
+	return hud && hud->GetRadar() && hud->GetModalHUD() == hud->GetMapAnim() && hud->IsPDAActive();
+}
+
+void OpenXRInput::UpdateMapGrab()
+{
+	bool mapOpen = IsMapOpen();
+	bool triggerHeld = false;
+	if (mapOpen)
+	{
+		XrActionStateBoolean state{ XR_TYPE_ACTION_STATE_BOOLEAN };
+		XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO };
+		getInfo.action = m_menuClick.handle;
+		if (XR_SUCCEEDED(xrGetActionStateBoolean(m_session, &getInfo, &state)))
+			triggerHeld = state.isActive && state.currentState;
+	}
+
+	// a grab starts only while pointing at the map, but continues if the pointer slides off it
+	bool grab = mapOpen && triggerHeld && (m_mapGrabActive || m_pointerOnHud);
+	if (grab != m_mapGrabActive)
+	{
+		if (mapOpen)
+			g_pGame->GetHUD()->GetRadar()->VRSetMapGrab(grab);
+		m_mapGrabActive = grab;
+	}
+
+	if (grab)
+		g_pGame->GetHUD()->GetRadar()->VRUpdateMapGrab();
 }
 
 bool OpenXRInput::CalcControllerHudIntersection(int hand, float& x, float& y)

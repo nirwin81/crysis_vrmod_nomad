@@ -436,6 +436,9 @@ struct SCVars
 	int vr_cutscenes_2d;
 	int vr_cinema_3d;
 	float vr_cinema_3d_eye_dist;
+	int vr_binoculars_head_attached;
+	int vr_binoculars_3d;
+	int vr_binoculars_toggle;
 	float vr_cutscenes_angle_snap;
 	float vr_yaw_deadzone_angle;
 	int vr_shadow_optimization;
@@ -471,6 +474,7 @@ struct SCVars
 	float vr_menu_offset;
 	float vr_map_distance;
 	float vr_map_size;
+	int vr_map_toggle;
 	float vr_melee_trigger_velocity;
 	float vr_bhaptics_strength;
 

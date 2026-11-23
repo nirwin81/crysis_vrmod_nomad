@@ -251,6 +251,27 @@ void VRGui::DrawSettingsMenu()
 		g_pGameCVars->vr_cutscenes_2d = cutsceneMode > 0;
 		g_pGameCVars->vr_cinema_3d = cutsceneMode == 2;
 
+		if (cutsceneMode == 0)
+		{
+			ImGui::SliderFloat("Cutscene turn snap angle", &g_pGameCVars->vr_cutscenes_angle_snap, 0.f, 90.f, "%.0f deg");
+			ImGui::SetItemTooltip("How far the cutscene camera can turn before your view snaps to it.\n0 = always follow the camera's turns immediately.");
+		}
+
+		bool binocularsHead = g_pGameCVars->vr_binoculars_head_attached;
+		ImGui::Checkbox("Binoculars follow head", &binocularsHead);
+		ImGui::SetItemTooltip("Look through the binoculars with your head instead of aiming them with your off hand");
+		g_pGameCVars->vr_binoculars_head_attached = binocularsHead;
+
+		bool binoculars3D = g_pGameCVars->vr_binoculars_3d;
+		ImGui::Checkbox("Binoculars in 3D", &binoculars3D);
+		ImGui::SetItemTooltip("Render the binoculars view in stereoscopic 3D instead of flat");
+		g_pGameCVars->vr_binoculars_3d = binoculars3D;
+
+		bool binocularsToggle = g_pGameCVars->vr_binoculars_toggle;
+		ImGui::Checkbox("Toggle binoculars (instead of hold)", &binocularsToggle);
+		ImGui::SetItemTooltip("Press the binoculars button once to raise them and again to put them away");
+		g_pGameCVars->vr_binoculars_toggle = binocularsToggle;
+
 		bool vehicle2D = g_pGameCVars->vr_vehicle_2d;
 		ImGui::Checkbox("Switch to 2D mode when driving vehicles", &vehicle2D);
 		g_pGameCVars->vr_vehicle_2d = vehicle2D;

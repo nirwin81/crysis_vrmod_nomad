@@ -175,6 +175,12 @@ public:
 	virtual bool DragMap(Vec2 p_vDir);
 	//get dragging status
 	virtual bool GetDrag() {return m_bDragMap;}
+	//VR: continuous zoom from a thumbstick (positive = zoom in)
+	void VRZoomPDA(float stickValue, float frameTime);
+	//VR: start/stop grabbing the map with the pointer
+	void VRSetMapGrab(bool active);
+	//VR: move the map along with the pointer while grabbed
+	void VRUpdateMapGrab();
 	//reload the minimap to the flash animation
 	void ReloadMiniMap();
 	//returns the selected teammates vector
@@ -285,6 +291,9 @@ private:
 	Vec2	m_vPDAMapTranslation;
 	Vec2	m_vPDATempMapTranslation;
 	bool	m_bDragMap;
+	bool	m_bVRMapGrab = false;
+	Vec2	m_vVRGrabLastPointer = Vec2(0, 0);
+	bool	GetPDAPointerPos(Vec2& pos) const;
 	bool	m_initMap;
 
 	//unique sound id

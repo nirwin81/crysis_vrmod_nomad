@@ -2029,13 +2029,28 @@ bool CHUD::OnAction(const ActionId& action, int activationMode, float value)
 	else if(action == rGameActions.xi_hud_back)
 	{
 		float now = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+		// VR map toggle (single player): holding opens the objectives/map and it stays open; the next press closes it
+		bool mapToggle = g_pGameCVars->vr_map_toggle && !gEnv->bMultiplayer;
 		if(activationMode == eIS_Pressed)
 		{
-			m_fBackPressedTime = now;
+			if(mapToggle && m_animObjectivesTab.GetVisible())
+			{
+				ShowObjectives(false);
+				m_fBackPressedTime = 0.0f;
+				m_bBackClosedMap = true;
+			}
+			else
+			{
+				m_fBackPressedTime = now;
+			}
 		}
 		else if(activationMode == eIS_Released)
 		{
-			if(m_fBackPressedTime && (now-m_fBackPressedTime)<0.2f)
+			if(m_bBackClosedMap)
+			{
+				m_bBackClosedMap = false;
+			}
+			else if(m_fBackPressedTime && (now-m_fBackPressedTime)<0.2f)
 			{
 				m_fBackPressedTime = 0.0f;
 				if(!ReturnFromLastModalScreen())
@@ -2047,7 +2062,7 @@ bool CHUD::OnAction(const ActionId& action, int activationMode, float value)
 					}
 				}
 			}
-			else
+			else if(!mapToggle)
 			{
 				OnAction(rGameActions.hud_hide_multiplayer_scoreboard, eIS_Released, 1);
 			}
