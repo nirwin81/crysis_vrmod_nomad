@@ -44,6 +44,10 @@ public:
 	void ModifyViewCamera(int eye, CCamera& cam);
 	void ModifyViewCameraFor3DCinema(int eye, CCamera& cam);
 	void ModifyViewForBinoculars(SViewParams& view);
+	Quat SmoothBinocularRotation(const Quat& target);
+	bool IsBinocularVRZoomActive() const;
+	float GetBinocularMagnification() const;
+	Matrix34 GetLocalHmdTransform() const;
 	void ModifyCameraFor2D(CCamera& cam);
 	void ModifyWeaponPosition(CPlayer* player, Ang3& weaponAngles, Vec3& weaponPosition, bool slave = false);
 	Matrix34 GetControllerTransform(int side);
@@ -100,6 +104,16 @@ public:
 	const ray_hit* GetPointAtPoint(float maxDist = 0) const;
 	EntityId GetPointAtEntityId() const { return m_pointAtEntityId; }
 
+	// magnified scope view rendered into one eye while staying in VR (used when vr_scope_2d is off)
+	void SetScopeViewActive(bool active);
+	bool IsScopeViewActive() const { return m_scopeViewActive; }
+	void ChangeScopeZoom(int direction);
+	float GetScopeMagnification() const;
+	// sets up the camera for the scope render pass; returns false if no scope view should be rendered this frame
+	bool SetupScopeCamera(CCamera& cam, int& squareSize);
+	// copies the rendered scope image from the backbuffer and draws it into the chosen eye
+	void CaptureAndCompositeScope(int squareSize);
+
 private:
 	bool m_initialized = false;
 	ComPtr<ID3D10Device1> m_device;
@@ -107,6 +121,10 @@ private:
 	ComPtr<ID3D10Texture2D> m_eyeTextures[2];
 	ComPtr<ID3D10ShaderResourceView> m_eyeViews[2];
 	ComPtr<ID3D10Texture2D> m_hudTexture;
+	ComPtr<ID3D10RenderTargetView> m_eyeRenderTargets[2];
+	ComPtr<ID3D10Texture2D> m_scopeTexture;
+	ComPtr<ID3D10ShaderResourceView> m_scopeView;
+	ComPtr<ID3D10Texture2D> m_scopeResolveTexture;
 
 	// D3D11 resources for OpenXR submission
 	ComPtr<ID3D11Device> m_device11;
@@ -132,6 +150,8 @@ private:
 	void ReleaseTextureSync(ID3D11Texture2D* target, int key);
 
 	Ang3 m_smoothedWeaponAngles;
+	Quat m_smoothedBinocularRotation = Quat(IDENTITY);
+	float m_binocularFrameTime = -100.f;
 
 	Vec3 m_referencePosition;
 	float m_referenceYaw = 0;
@@ -151,6 +171,14 @@ private:
 	ray_hit m_offHandRayHit;
 	bool m_offHandRayHitAny = false;
 	EntityId m_pointAtEntityId;
+
+	bool m_scopeViewActive = false;
+	int m_scopeZoomStep = 1;
+	EntityId m_scopeWeaponId = 0;
+	int m_scopeEye = 0;
+	Vec2 m_scopeCenterPx = Vec2(0, 0);
+	float m_scopeRadiusPx = 0;
+	void ReleaseScopeResources();
 
 	int m_numFailedSyncs = 0;
 	bool m_shownSyncFailureMessage = false;

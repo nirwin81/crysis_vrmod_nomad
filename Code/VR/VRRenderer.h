@@ -40,7 +40,10 @@ public:
 
 	bool ShouldIgnoreWindowSizeChanges() const { return m_ignoreWindowSizeChanges || SAFE_MENU_FUNC_RET(IsLoadingScreenActive()); }
 
-	bool ShouldRenderShadowMaps() const { return m_currentEye != 1; }
+	// shadow maps are rendered once for the left eye and reused for the right eye and the scope view
+	bool ShouldRenderShadowMaps() const { return m_currentEye != 1 && m_currentEye != ScopeViewPass; }
+
+	const CCamera& GetEyeCamera(int eye) const { return m_eyeCams[eye & 1]; }
 
 	bool AreBinocularsActive() const { return m_binocularsActive; }
 	void GuiClickedUnfocussed() { m_gui.ClickedNoFocus(); }
@@ -56,9 +59,12 @@ private:
 	bool m_didRenderThisFrame = false;
 	int64 m_lastPresentCallTime = 0;
 	int m_currentEye = -1;
+	static const int ScopeViewPass = 2;
+	CCamera m_eyeCams[2];
 	float m_imguiScale = 1.f;
 
 	void RenderSingleEye(int eye, SystemRenderFunc renderFunc, ISystem* pSystem);
+	void RenderScopeView(SystemRenderFunc renderFunc, ISystem* pSystem);
 	void DrawCrosshair();
 
 	void UpdateShaderParamsForReflexSight();

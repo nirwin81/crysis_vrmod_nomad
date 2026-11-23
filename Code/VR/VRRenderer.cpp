@@ -157,6 +157,12 @@ void VRRenderer::Render(SystemRenderFunc renderFunc, ISystem* pSystem)
 	pSystem->RenderBegin();
 	RenderSingleEye(1, renderFunc, pSystem);
 
+	if (GetRenderMode() == RM_VR && gVR->IsScopeViewActive())
+	{
+		pSystem->RenderBegin();
+		RenderScopeView(renderFunc, pSystem);
+	}
+
 	Vec2i renderSize = gVR->GetRenderSize();
 	gEnv->pRenderer->SetScissor(0, 0, renderSize.x, renderSize.y);
 	// clear render target to fully transparent for HUD render
@@ -250,7 +256,8 @@ bool VRRenderer::ShouldRenderVR() const
 	{
 		if (CWeapon* weapon = pPlayer->GetWeapon(pPlayer->GetCurrentItemId(false)))
 		{
-			if (weapon->IsZoomed() || weapon->IsZooming())
+			// binoculars are handled below
+			if ((weapon->IsZoomed() || weapon->IsZooming()) && weapon->GetEntity()->GetClass() != CItem::sBinocularsClass)
 				return false;
 		}
 
@@ -260,7 +267,8 @@ bool VRRenderer::ShouldRenderVR() const
 		}
 	}
 
-	return !m_binocularsActive;
+	// binoculars either render as a magnified stereo view (VR zoom) or on a separate screen
+	return !m_binocularsActive || g_pGameCVars->vr_binoculars_vr_zoom;
 }
 
 VRRenderMode VRRenderer::GetRenderMode() const
@@ -304,6 +312,7 @@ void VRRenderer::RenderSingleEye(int eye, SystemRenderFunc renderFunc, ISystem* 
 	if (renderMode == RM_VR)
 	{
 		gVR->ModifyViewCamera(eye, eyeCam);
+		m_eyeCams[eye] = eyeCam;
 		float fov = eyeCam.GetFov();
 		gEnv->pRenderer->EF_Query(EFQ_DrawNearFov, (INT_PTR)&fov);
 	}
@@ -341,6 +350,49 @@ void VRRenderer::RenderSingleEye(int eye, SystemRenderFunc renderFunc, ISystem* 
 	m_currentEye = -1;
 }
 
+void VRRenderer::RenderScopeView(SystemRenderFunc renderFunc, ISystem* pSystem)
+{
+	CCamera scopeCam = m_originalViewCamera;
+	int squareSize = 0;
+	if (!gVR->SetupScopeCamera(scopeCam, squareSize))
+		return;
+
+	m_currentEye = ScopeViewPass;
+
+	// as for the second eye, don't update the particle system again
+	ICVar* particlesDebug = gEnv->pConsole->GetCVar("e_particles_debug");
+	int origParticlesDebug = particlesDebug ? particlesDebug->GetIVal() : 0;
+	if (particlesDebug)
+	{
+		particlesDebug->SetFlags(particlesDebug->GetFlags() & (~VF_CHEAT));
+		particlesDebug->Set((int)(origParticlesDebug | AlphaBit('z')));
+	}
+
+	pSystem->SetViewCamera(scopeCam);
+	m_viewCamOverridden = true;
+
+	// only the centred square is used, so try to limit rendering to it
+	Vec2i renderSize = gVR->GetRenderSize();
+	gEnv->pRenderer->SetScissor((renderSize.x - squareSize) / 2, (renderSize.y - squareSize) / 2, squareSize, squareSize);
+	ColorF black(0, 0, 0, 1);
+	gEnv->pRenderer->ClearBuffer(FRT_CLEAR_COLOR | FRT_CLEAR_IMMEDIATE, &black);
+
+	renderFunc(pSystem);
+
+	gEnv->pRenderer->SetScissor(0, 0, renderSize.x, renderSize.y);
+	pSystem->SetViewCamera(m_originalViewCamera);
+	m_viewCamOverridden = false;
+
+	gVR->CaptureAndCompositeScope(squareSize);
+
+	if (particlesDebug)
+	{
+		particlesDebug->Set(origParticlesDebug);
+	}
+
+	m_currentEye = -1;
+}
+
 void VRRenderer::DrawCrosshair()
 {
 	// don't show crosshair during cutscenes
@@ -351,6 +403,9 @@ void VRRenderer::DrawCrosshair()
 	if (!pPlayer)
 		return;
 	if (pPlayer->GetLinkedVehicle() || pPlayer->GetActorStats()->mountedWeaponID)
+		return;
+	// no weapon crosshair while looking through the binoculars
+	if (m_binocularsActive)
 		return;
 
 	if (CWeapon *weapon = pPlayer->GetWeapon(pPlayer->GetCurrentItemId(true)))

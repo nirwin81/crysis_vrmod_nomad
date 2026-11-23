@@ -888,7 +888,11 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_vehicle_crosshair", &vr_vehicle_crosshair, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, displays a simple crosshair for vehicle weapons to assist with aiming in VR");
 	pConsole->Register("vr_cutscenes_angle_snap", &vr_cutscenes_angle_snap, 45, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Ignores camera rotation in cutscenes until the angle difference reaches this value, then snaps the angle to the new value");
 	pConsole->Register("vr_cinema_3d", &vr_cinema_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, whenever the game switches to a cinema mode (e.g. binoculars, weapon scopes or cutscenes), the cinema will render in 3D");
+	pConsole->Register("vr_scope_2d", &vr_scope_2d, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, bringing a scoped weapon up to your eye switches to the game's zoomed scope view on a 2D screen");
+	pConsole->Register("vr_scope_view_size", &vr_scope_view_size, 14.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Apparent size in degrees of the magnified scope view shown in one eye when vr_scope_2d is off (2-60)");
+	pConsole->Register("vr_binoculars_vr_zoom", &vr_binoculars_vr_zoom, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars show a magnified stereo VR view with the binocular overlay on top, instead of a separate screen (overrides vr_binoculars_head_attached and vr_binoculars_3d)");
 	pConsole->Register("vr_binoculars_head_attached", &vr_binoculars_head_attached, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars view follows the head instead of the off-hand controller");
+	pConsole->Register("vr_binoculars_smoothing", &vr_binoculars_smoothing, 1.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Stabilization strength for the binoculars look direction, scaled by zoom level (0 = off, 1 = default, up to 5)");
 	pConsole->Register("vr_binoculars_3d", &vr_binoculars_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars view is rendered in stereoscopic 3D instead of flat (uses vr_cinema_3d_eye_dist)");
 	pConsole->Register("vr_binoculars_toggle", &vr_binoculars_toggle, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, the binoculars button toggles the binoculars on/off instead of having to be held");
 	pConsole->Register("vr_cinema_3d_eye_dist", &vr_cinema_3d_eye_dist, 0.032f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Determines the distance between the stereoscopic cameras in 3D cinema render mode");
@@ -937,8 +941,12 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_cutscenes_angle_snap", true);
 	pConsole->UnregisterVariable("vr_cinema_3d", true);
 	pConsole->UnregisterVariable("vr_cinema_3d_eye_dist", true);
+	pConsole->UnregisterVariable("vr_scope_2d", true);
+	pConsole->UnregisterVariable("vr_scope_view_size", true);
 	pConsole->UnregisterVariable("vr_binoculars_head_attached", true);
+	pConsole->UnregisterVariable("vr_binoculars_vr_zoom", true);
 	pConsole->UnregisterVariable("vr_binoculars_3d", true);
+	pConsole->UnregisterVariable("vr_binoculars_smoothing", true);
 	pConsole->UnregisterVariable("vr_binoculars_toggle", true);
 	pConsole->UnregisterVariable("vr_menu_distance", true);
 	pConsole->UnregisterVariable("vr_menu_size", true);

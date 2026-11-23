@@ -436,8 +436,12 @@ struct SCVars
 	int vr_cutscenes_2d;
 	int vr_cinema_3d;
 	float vr_cinema_3d_eye_dist;
+	int vr_scope_2d;
+	float vr_scope_view_size;
 	int vr_binoculars_head_attached;
+	int vr_binoculars_vr_zoom;
 	int vr_binoculars_3d;
+	float vr_binoculars_smoothing;
 	int vr_binoculars_toggle;
 	float vr_cutscenes_angle_snap;
 	float vr_yaw_deadzone_angle;

@@ -18,9 +18,9 @@ You can also pick up weapons and ammo dropped by your enemies with your off hand
 Bring your off hand close to your head, then press trigger to toggle nightvision.
 
 ## Using the binoculars
-Press your off hand's A/X button to bring up your binoculars, and press it again to put them away. While active, the binoculars view will be shown in front of your eyes in 3D. Look around with your head, or turn with the right thumbstick. Push the right thumbstick up or down to zoom in or out.
+Press your off hand's A/X button to bring up your binoculars, and press it again to put them away. While active, your whole VR view is magnified, with the binoculars overlay on top. Look around with your head, or turn with the right thumbstick. Push the right thumbstick up or down to zoom in or out. The view is stabilized to smooth out shaking; you can adjust this with "Binoculars stabilization" in the VR settings.
 
-In the VR settings, you can switch holding the button, to aiming the binoculars with your off hand, or to a flat 2D view.
+In the VR settings, you can also switch back to holding the button, or show the binoculars view on a separate screen instead, which can then be aimed with your off hand or shown in flat 2D.
 
 ## Menu and objectives
 Pressing the off hand's B/Y button brings up the game's menu. If you instead hold the button down, you will see an overview of your current objectives and the map of the island. The map stays open until you press B/Y again.

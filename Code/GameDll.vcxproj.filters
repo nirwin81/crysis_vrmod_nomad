@@ -2002,6 +2002,9 @@
     <FxCompile Include="Shaders\FullScreenTri.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\ScopeView.ps.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ThirdParty\imgui\misc\debuggers\imgui.natvis">

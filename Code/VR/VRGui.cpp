@@ -257,15 +257,36 @@ void VRGui::DrawSettingsMenu()
 			ImGui::SetItemTooltip("How far the cutscene camera can turn before your view snaps to it.\n0 = always follow the camera's turns immediately.");
 		}
 
-		bool binocularsHead = g_pGameCVars->vr_binoculars_head_attached;
-		ImGui::Checkbox("Binoculars follow head", &binocularsHead);
-		ImGui::SetItemTooltip("Look through the binoculars with your head instead of aiming them with your off hand");
-		g_pGameCVars->vr_binoculars_head_attached = binocularsHead;
+		bool scope2D = g_pGameCVars->vr_scope_2d;
+		ImGui::Checkbox("Switch to 2D zoomed view when aiming down scopes", &scope2D);
+		ImGui::SetItemTooltip("When aiming down a scope (both hands on the weapon, weapon hand near your eye):\nOn: switch to the game's magnified scope view on a 2D screen.\nOff: stay in VR and show the magnified view inside the scope, in the eye you aim with.");
+		g_pGameCVars->vr_scope_2d = scope2D;
+		if (!scope2D)
+		{
+			ImGui::SliderFloat("Scope view size (deg)", &g_pGameCVars->vr_scope_view_size, 5.f, 40.f, "%.0f");
+			ImGui::SetItemTooltip("How large the magnified scope image appears in the eye you aim with");
+		}
 
-		bool binoculars3D = g_pGameCVars->vr_binoculars_3d;
-		ImGui::Checkbox("Binoculars in 3D", &binoculars3D);
-		ImGui::SetItemTooltip("Render the binoculars view in stereoscopic 3D instead of flat");
-		g_pGameCVars->vr_binoculars_3d = binoculars3D;
+		bool binocularsVRZoom = g_pGameCVars->vr_binoculars_vr_zoom;
+		ImGui::Checkbox("Binoculars zoom the VR view", &binocularsVRZoom);
+		ImGui::SetItemTooltip("On: the binoculars magnify the normal 3D VR view, with the binocular overlay on top.\nOff: the binoculars view is shown on a separate screen.");
+		g_pGameCVars->vr_binoculars_vr_zoom = binocularsVRZoom;
+
+		if (!binocularsVRZoom)
+		{
+			bool binocularsHead = g_pGameCVars->vr_binoculars_head_attached;
+			ImGui::Checkbox("Binoculars follow head", &binocularsHead);
+			ImGui::SetItemTooltip("Look through the binoculars with your head instead of aiming them with your off hand");
+			g_pGameCVars->vr_binoculars_head_attached = binocularsHead;
+
+			bool binoculars3D = g_pGameCVars->vr_binoculars_3d;
+			ImGui::Checkbox("Binoculars in 3D", &binoculars3D);
+			ImGui::SetItemTooltip("Render the binoculars view in stereoscopic 3D instead of flat");
+			g_pGameCVars->vr_binoculars_3d = binoculars3D;
+		}
+
+		ImGui::SliderFloat("Binoculars stabilization", &g_pGameCVars->vr_binoculars_smoothing, 0.f, 5.f, "%.1f");
+		ImGui::SetItemTooltip("Smooths out shaking of the binoculars view; stronger at higher zoom.\n0 = off. Higher values are steadier but lag more behind your movement.");
 
 		bool binocularsToggle = g_pGameCVars->vr_binoculars_toggle;
 		ImGui::Checkbox("Toggle binoculars (instead of hold)", &binocularsToggle);

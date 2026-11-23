@@ -25,8 +25,12 @@ Weapons will generally be more accurate if you are crouching or lying prone or h
 You can grab weapons with both hands to reduce spread and recoil. Bring your off hand close to the grab point, then press and hold grip on your off hand.
 
 ## Weapon scopes
-If your weapon has a scope equipped, you can enable the scope mode by grabbing the weapon with both hands and then moving your weapon hand close to your head. In this mode, the VR view will deactivate, and you will instead see the scope view in front of you. You can still aim the weapon with both of your hands. Move your hand away from your head or let go with the off hand to exit the scope view.
+If your weapon has a scope equipped, you can enable the scope mode by grabbing the weapon with both hands and then moving your weapon hand close to your head. Move your hand away from your head or let go with the off hand to exit the scope mode.
 If the scope has multiple zoom levels, you can choose between them by moving the right thumbstick up or down.
+
+By default, the scope mode keeps you in VR: a magnified view with a reticle appears inside the scope, in the eye you are aiming with, while the rest of the world stays in 3D around it. You can change how large the magnified view appears with "Scope view size" in the VR settings.
+
+If you prefer the game's original scope view instead, enable "Switch to 2D zoomed view when aiming down scopes" in the VR settings. In that mode, the VR view will deactivate while scoped, and you will instead see the scope view on a screen in front of you. You can still aim the weapon with both of your hands.
 
 *Note*: for activating the scope view, the distance between your hand and your head matters, *not* the distance between the visible scope and the head. This may feel a bit unintuitive initially, but I don't have easy access to the actual scope's position.
 

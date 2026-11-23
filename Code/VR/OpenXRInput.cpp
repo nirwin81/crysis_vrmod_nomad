@@ -671,7 +671,8 @@ void OpenXRInput::UpdatePlayerMovement()
 	bool usingBinoculars = gVRRenderer->AreBinocularsActive();
 	CWeapon* weapon = pPlayer->GetWeapon(pPlayer->GetCurrentItemId());
 	bool usingWeaponZoom = weapon && weapon->IsZoomed();
-	bool isZoomed = usingBinoculars || usingWeaponZoom;
+	bool usingScopeView = gVR->IsScopeViewActive();
+	bool isZoomed = usingBinoculars || usingWeaponZoom || usingScopeView;
 
 	XrActionStateFloat state{ XR_TYPE_ACTION_STATE_FLOAT };
 	XrActionStateGetInfo getInfo{ XR_TYPE_ACTION_STATE_GET_INFO };
@@ -782,7 +783,12 @@ void OpenXRInput::UpdatePlayerMovement()
 	else
 	{
 		if (!m_wasJumpActive)
-			input->OnAction(isZoomed ? g_pGameActions->zoom_in : g_pGameActions->jump, eAAM_OnPress, 1);
+		{
+			if (usingScopeView)
+				gVR->ChangeScopeZoom(1);
+			else
+				input->OnAction(isZoomed ? g_pGameActions->zoom_in : g_pGameActions->jump, eAAM_OnPress, 1);
+		}
 		m_wasJumpActive = true;
 	}
 	if (jumpCrouch > -g_pGameCVars->vr_controller_stick_action_threshold)
@@ -795,7 +801,11 @@ void OpenXRInput::UpdatePlayerMovement()
 	{
 		if (!m_wasCrouchActive)
 		{
-			if (isZoomed)
+			if (usingScopeView)
+			{
+				gVR->ChangeScopeZoom(-1);
+			}
+			else if (isZoomed)
 			{
 				input->OnAction(g_pGameActions->zoom_out, eAAM_OnPress, 1);
 			}
@@ -867,8 +877,26 @@ void OpenXRInput::UpdateWeaponScopes()
 		return;
 
 	CWeapon* weapon = player->GetWeapon(player->GetCurrentItemId());
-	if (!weapon || !weapon->HasScope())
+	if (!weapon || !weapon->HasScope() || weapon->GetEntity()->GetClass() == CItem::sBinocularsClass)
+	{
+		gVR->SetScopeViewActive(false);
 		return;
+	}
+
+	if (!g_pGameCVars->vr_scope_2d)
+	{
+		// 2D scope view disabled: never enter weapon zoom, and leave it if the setting was switched off while zoomed
+		if (weapon->IsZoomed() && !weapon->IsZooming())
+			input->OnAction(g_pGameActions->xi_zoom, eAAM_OnPress, 1);
+
+		// instead, show the magnified scope view in the eye looking down the scope, using the same activation as the 2D scope
+		bool canUseScope = !player->IsSwimming() && !player->IsSprinting() && gVR->IsOffHandGrabbingWeapon();
+		float activationDistance = gVR->IsScopeViewActive() ? 0.35f : 0.25f;
+		gVR->SetScopeViewActive(canUseScope && gVR->IsHandNearHead(WEAPON_HAND, activationDistance));
+		return;
+	}
+
+	gVR->SetScopeViewActive(false);
 
 	if (!weapon->IsZoomed() && !weapon->IsZooming())
 	{

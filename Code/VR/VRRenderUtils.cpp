@@ -6,6 +6,7 @@
 #include "VRRenderer.h"
 #include "Shaders/generated/ShaderDrawTexturePS.h"
 #include "Shaders/generated/ShaderFullScreenTriVS.h"
+#include "Shaders/generated/ShaderScopeViewPS.h"
 
 namespace
 {
@@ -81,6 +82,9 @@ void VRRenderUtils::Init(ID3D10Device* device)
 	sd.MinLOD = 0;
 	sd.MaxLOD = 0;
 	CHECK_D3D10(m_device->CreateSamplerState(&sd, m_sampler.ReleaseAndGetAddressOf()));
+	sd.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+	CHECK_D3D10(m_device->CreateSamplerState(&sd, m_linearSampler.ReleaseAndGetAddressOf()));
+	CHECK_D3D10(m_device->CreatePixelShader(g_ShaderScopeViewPS, sizeof(g_ShaderScopeViewPS), m_scopeViewPixelShader.ReleaseAndGetAddressOf()));
 
 	D3D10_RASTERIZER_DESC rd;
 	rd.FillMode = D3D10_FILL_SOLID;
@@ -123,7 +127,9 @@ void VRRenderUtils::Shutdown()
 	m_NoBlend.Reset();
 	m_rasterizerState.Reset();
 	m_sampler.Reset();
+	m_linearSampler.Reset();
 	m_drawTexturePixelShader.Reset();
+	m_scopeViewPixelShader.Reset();
 	m_fullScreenTriVertexShader.Reset();
 	m_device.Reset();
 }
@@ -184,4 +190,42 @@ void VRRenderUtils::CopyEyeToScreenMirror(ID3D10ShaderResourceView* eyeTexture, 
 	m_device->RSSetState(m_rasterizerState.Get());
 
 	m_device->Draw(3, 0);
+}
+
+void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, float x, float y, float size)
+{
+	if (!m_device || !target || !scopeTexture || !m_scopeViewPixelShader || size < 1.f)
+		return;
+
+	D3D10StateGuard stateGuard(m_device.Get());
+
+	m_device->OMSetRenderTargets(1, &target, nullptr);
+
+	// the full screen triangle covers the viewport, which we place over the scope circle's bounding square
+	D3D10_VIEWPORT vp;
+	vp.TopLeftX = (INT)x;
+	vp.TopLeftY = (INT)y;
+	vp.Width = (UINT)size;
+	vp.Height = (UINT)size;
+	vp.MinDepth = 0;
+	vp.MaxDepth = 1;
+	m_device->RSSetViewports(1, &vp);
+
+	m_device->OMSetBlendState(m_NoBlend.Get(), nullptr, 0xffffffff);
+	m_device->OMSetDepthStencilState(m_disableDepth.Get(), 0);
+	m_device->VSSetShader(m_fullScreenTriVertexShader.Get());
+	m_device->PSSetShader(m_scopeViewPixelShader.Get());
+	m_device->PSSetShaderResources(0, 1, &scopeTexture);
+	m_device->PSSetSamplers(0, 1, m_linearSampler.GetAddressOf());
+	m_device->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+	m_device->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+	m_device->IASetInputLayout(nullptr);
+	m_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_device->RSSetState(m_rasterizerState.Get());
+
+	m_device->Draw(3, 0);
+
+	// don't leave the scope texture bound, we copy into it next frame
+	ID3D10ShaderResourceView* nullView = nullptr;
+	m_device->PSSetShaderResources(0, 1, &nullView);
 }

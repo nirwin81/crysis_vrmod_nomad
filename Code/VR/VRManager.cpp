@@ -68,6 +68,11 @@ VRManager::~VRManager()
 	}
 	m_hudTexture.Detach();
 	m_hudTexture11.Detach();
+	m_eyeRenderTargets[0].Detach();
+	m_eyeRenderTargets[1].Detach();
+	m_scopeView.Detach();
+	m_scopeTexture.Detach();
+	m_scopeResolveTexture.Detach();
 	m_swapchain.Detach();
 	m_device.Detach();
 	m_context11.Detach();
@@ -100,6 +105,7 @@ void VRManager::Shutdown()
 	}
 	m_hudTexture.Reset();
 	m_hudTexture11.Reset();
+	ReleaseScopeResources();
 	m_swapchain.Reset();
 	m_device.Reset();
 	m_context11.Reset();
@@ -326,7 +332,23 @@ void VRManager::ModifyViewCamera(int eye, CCamera& cam)
 	Matrix34 eyeMat = GetEyeTransform(eye);
 	Vec3 eyePos = eyeMat.GetTranslation();
 	eyeMat.SetTranslation(eyePos);
-	viewMat = viewMat * eyeMat;
+
+	float zoomFovScale = 1.f;
+	if (IsBinocularVRZoomActive())
+	{
+		// binoculars: render the normal stereo view, but around the stabilized head direction and with a narrower FOV,
+		// which the headset then shows magnified
+		Matrix34 headLocal = GetLocalHmdTransform();
+		Matrix34 headWorld = viewMat * headLocal;
+		Quat stabilized = SmoothBinocularRotation(GetQuatFromMat33((Matrix33)headWorld));
+		Matrix34 stabilizedHead(Matrix33(stabilized), headWorld.GetTranslation());
+		viewMat = stabilizedHead * headLocal.GetInvertedFast() * eyeMat;
+		zoomFovScale = 1.f / GetBinocularMagnification();
+	}
+	else
+	{
+		viewMat = viewMat * eyeMat;
+	}
 
 	cam.SetMatrix(viewMat);
 
@@ -334,6 +356,11 @@ void VRManager::ModifyViewCamera(int eye, CCamera& cam)
 	// for now, set up a symmetric FOV and cut off parts of the image during submission
 	float tanl, tanr, tant, tanb;
 	gXR->GetFov(eye, tanl, tanr, tant, tanb);
+	// scaling all FOV tangents equally zooms in while keeping the render limits used for submission valid
+	tanl *= zoomFovScale;
+	tanr *= zoomFovScale;
+	tant *= zoomFovScale;
+	tanb *= zoomFovScale;
 	float verticalFov = max(fabsf(tant), fabsf(tanb));
 	float vertFov = atanf(verticalFov) * 2;
 	Vec2i renderSize = GetRenderSize();
@@ -355,18 +382,42 @@ void VRManager::ModifyViewCameraFor3DCinema(int eye, CCamera& cam)
 	cam.SetMatrix(transform);
 }
 
+Matrix34 VRManager::GetLocalHmdTransform() const
+{
+	Matrix34 hmd = Matrix34(gXR->GetHmdTransform());
+	Vec3 position = GetReferenceTransform() * (hmd.GetTranslation() - m_referencePosition);
+	Ang3 angles(hmd);
+	angles.z -= m_referenceYaw;
+	return Matrix34::CreateRotationXYZ(angles, position);
+}
+
+bool VRManager::IsBinocularVRZoomActive() const
+{
+	return g_pGameCVars->vr_binoculars_vr_zoom && gVRRenderer->AreBinocularsActive()
+		&& !g_pGame->GetIGameFramework()->GetIViewSystem()->IsPlayingCutScene();
+}
+
+float VRManager::GetBinocularMagnification() const
+{
+	CPlayer* player = GetLocalPlayer();
+	CWeapon* binoculars = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
+	if (IZoomMode* zm = binoculars ? binoculars->GetZoomMode(binoculars->GetCurrentZoomMode()) : nullptr)
+	{
+		float fovScale = zm->GetZoomFoVScale(zm->GetCurrentStep());
+		if (fovScale > 0.01f)
+			return max(1.f / fovScale, 1.f);
+	}
+	return 1.f;
+}
+
 void VRManager::ModifyViewForBinoculars(SViewParams& view)
 {
-	if (g_pGameCVars->vr_binoculars_head_attached)
+	if (g_pGameCVars->vr_binoculars_head_attached || g_pGameCVars->vr_binoculars_vr_zoom)
 	{
 		// look through the binoculars from the headset's position and orientation
-		Matrix34 hmd = Matrix34(gXR->GetHmdTransform());
-		Vec3 position = GetReferenceTransform() * (hmd.GetTranslation() - m_referencePosition);
-		Ang3 angles(hmd);
-		angles.z -= m_referenceYaw;
-		Matrix34 headTransform = GetBaseVRTransform(true) * Matrix34::CreateRotationXYZ(angles, position);
+		Matrix34 headTransform = GetBaseVRTransform(true) * GetLocalHmdTransform();
 
-		view.rotation = GetQuatFromMat33((Matrix33)headTransform);
+		view.rotation = SmoothBinocularRotation(GetQuatFromMat33((Matrix33)headTransform));
 		view.position = headTransform.GetTranslation();
 		return;
 	}
@@ -379,8 +430,40 @@ void VRManager::ModifyViewForBinoculars(SViewParams& view)
 	controllerTransform.SetTranslation(controllerTransform.GetTranslation() + 0.5f * forward);
 	controllerTransform = controllerTransform * Matrix34::CreateTranslationMat(Vec3((leftHanded ? 1 : -1) * vr_binocular_size / 2, 0, vr_binocular_size / 2));
 
-	view.rotation = GetQuatFromMat33((Matrix33)controllerTransform);
+	view.rotation = SmoothBinocularRotation(GetQuatFromMat33((Matrix33)controllerTransform));
 	view.position = controllerTransform.GetTranslation();
+}
+
+Quat VRManager::SmoothBinocularRotation(const Quat& target)
+{
+	// this gets called for the game view and again for each eye; only advance the smoothing once per frame,
+	// so that both eyes (and the game logic) use the exact same direction
+	float frameTime = gEnv->pTimer->GetFrameStartTime(ITimer::ETIMER_UI).GetSeconds();
+	if (frameTime == m_binocularFrameTime)
+		return m_smoothedBinocularRotation;
+	bool restarted = frameTime - m_binocularFrameTime > 0.25f || frameTime < m_binocularFrameTime;
+	m_binocularFrameTime = frameTime;
+
+	float strength = clamp_tpl(g_pGameCVars->vr_binoculars_smoothing, 0.f, 5.f);
+	if (restarted || strength <= 0.f)
+	{
+		// binoculars were just raised (or smoothing is off): start from the current direction
+		m_smoothedBinocularRotation = target;
+		return target;
+	}
+
+	// shake is magnified by the zoom, so smooth more the further we zoom in
+	float magnification = GetBinocularMagnification();
+
+	// exponential smoothing; halfLife is how long it takes to cover half the distance to the new direction
+	float halfLife = min(0.06f * strength * max(magnification, 1.f), 0.6f);
+	float keep = powf(2.f, -gEnv->pTimer->GetFrameTime() / halfLife);
+
+	Quat target2 = target;
+	if ((m_smoothedBinocularRotation | target2) < 0)
+		target2 = -target2; // take the short way round
+	m_smoothedBinocularRotation = Quat::CreateNlerp(target2, m_smoothedBinocularRotation, keep);
+	return m_smoothedBinocularRotation;
 }
 
 void VRManager::ModifyCameraFor2D(CCamera& cam)
@@ -459,12 +542,13 @@ void VRManager::ModifyWeaponPosition(CPlayer* player, Ang3& weaponAngles, Vec3& 
 	weaponPosition = trackedTransform.GetTranslation();
 	weaponAngles = Ang3(trackedTransform);
 
-	if (weapon->IsZoomed())
+	if (weapon->IsZoomed() || (m_scopeViewActive && !slave))
 	{
 		weaponAngles.y = 0;
 		// smooth weapon orientation with exponential decay, since otherwise zoom is extremely unstable
 		IZoomMode* zm = weapon->GetZoomMode(weapon->GetCurrentZoomMode());
-		float factor = 0.03f * cry_powf(1.f / zm->GetZoomFoVScale(zm->GetCurrentStep()), 1.5f);
+		float fovScale = (weapon->IsZoomed() && zm) ? zm->GetZoomFoVScale(zm->GetCurrentStep()) : 1.f / GetScopeMagnification();
+		float factor = 0.03f * cry_powf(1.f / fovScale, 1.5f);
 		Ang3 smoothedAngles = weaponAngles;
 		float yawPitchDecay = powf(2.f, -gEnv->pSystem->GetITimer()->GetFrameTime() / factor);
 		smoothedAngles.z = weaponAngles.z + GetAngleDifference360(m_smoothedWeaponAngles.z, weaponAngles.z) * yawPitchDecay;
@@ -770,7 +854,7 @@ void VRManager::Update()
 	{
 		if (g_pGame->GetIGameFramework()->GetIViewSystem()->IsPlayingCutScene())
 			SetHudInFrontOfPlayer();
-		else if (g_pGameCVars->vr_binoculars_head_attached)
+		else if (g_pGameCVars->vr_binoculars_head_attached || g_pGameCVars->vr_binoculars_vr_zoom)
 			SetHudForHeadBinoculars();
 		else
 			SetHudAttachedToOffHand();
@@ -862,9 +946,10 @@ void VRManager::SetHudAttachedToHead()
 
 void VRManager::SetHudForHeadBinoculars()
 {
-	// head-locked screen 1 m in front of the eyes, 1 m wide (~53 degrees horizontal)
+	// head-locked screen 1 m in front of the eyes, 1 m wide (~53 degrees horizontal);
+	// in VR zoom mode it only carries the binocular overlay over the 3D view, so make it larger (~74 degrees)
 	const float distance = 1.f;
-	const float width = 1.f;
+	const float width = g_pGameCVars->vr_binoculars_vr_zoom ? 1.5f : 1.f;
 	m_fixedPositionInitialized = false;
 
 	Matrix34 hudTransform = Matrix34(gXR->GetHmdTransform());
@@ -1255,6 +1340,7 @@ void VRManager::UpdateSmoothedPlayerHeight()
 void VRManager::InitDevice(IDXGISwapChain* swapchain)
 {
 	m_hudTexture.Reset();
+	ReleaseScopeResources();
 	m_eyeViews[0].Reset();
 	m_eyeViews[1].Reset();
 	m_eyeTextures[0].Reset();
@@ -1324,6 +1410,7 @@ void VRManager::CreateEyeTexture(int eye)
 {
 	Vec2i size = GetRenderSize();
 	CryLogAlways("Creating eye texture %i: %i x %i", eye, size.x, size.y);
+	m_eyeRenderTargets[eye].Reset();
 	CreateSharedTexture(m_eyeTextures[eye], m_eyeTextures11[eye], size.x, size.y);
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -1354,7 +1441,7 @@ void VRManager::CreateSharedTexture(ComPtr<ID3D10Texture2D> &texture, ComPtr<ID3
 	desc.ArraySize = 1;
 	desc.MipLevels = 1;
 	desc.Usage = D3D10_USAGE_DEFAULT;
-	desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 	desc.MiscFlags = D3D10_RESOURCE_MISC_SHARED_KEYEDMUTEX;
 	HRESULT hr = m_device->CreateTexture2D(&desc, nullptr, texture.ReleaseAndGetAddressOf());
 	if (hr != S_OK)
@@ -1475,4 +1562,197 @@ void VRManager::UpdateOffHandRayQuery()
 	{
 		m_pointAtEntityId = 0;
 	}
+}
+
+//------------------------------------------------------------------------
+// Magnified scope view inside the 3D view
+//------------------------------------------------------------------------
+
+void VRManager::ReleaseScopeResources()
+{
+	m_eyeRenderTargets[0].Reset();
+	m_eyeRenderTargets[1].Reset();
+	m_scopeView.Reset();
+	m_scopeTexture.Reset();
+	m_scopeResolveTexture.Reset();
+}
+
+void VRManager::SetScopeViewActive(bool active)
+{
+	if (active && !m_scopeViewActive)
+	{
+		// start at the lowest magnification whenever a different weapon is scoped
+		CPlayer* player = GetLocalPlayer();
+		EntityId weaponId = player ? player->GetCurrentItemId() : 0;
+		if (weaponId != m_scopeWeaponId)
+		{
+			m_scopeZoomStep = 1;
+			m_scopeWeaponId = weaponId;
+		}
+	}
+	m_scopeViewActive = active;
+}
+
+void VRManager::ChangeScopeZoom(int direction)
+{
+	CPlayer* player = GetLocalPlayer();
+	CWeapon* weapon = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
+	int maxSteps = weapon ? weapon->GetMaxZoomSteps() : 1;
+	m_scopeZoomStep = clamp_tpl(m_scopeZoomStep + direction, 1, max(1, maxSteps));
+}
+
+float VRManager::GetScopeMagnification() const
+{
+	const float defaultMagnification = 4.f;
+	CPlayer* player = GetLocalPlayer();
+	CWeapon* weapon = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
+	if (!weapon)
+		return defaultMagnification;
+
+	IZoomMode* zm = weapon->GetZoomMode(weapon->GetCurrentZoomMode());
+	int maxSteps = weapon->GetMaxZoomSteps();
+	if (!zm || maxSteps < 1)
+		return defaultMagnification;
+
+	float fovScale = zm->GetZoomFoVScale(clamp_tpl(m_scopeZoomStep, 1, maxSteps));
+	return fovScale > 0.01f ? 1.f / fovScale : defaultMagnification;
+}
+
+bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
+{
+	if (!m_scopeViewActive || g_pGameCVars->vr_scope_2d || g_pGame->GetMenu()->IsMenuActive())
+		return false;
+
+	CPlayer* player = GetLocalPlayer();
+	if (!player || player->GetLinkedVehicle() || player->GetActorStats()->mountedWeaponID)
+		return false;
+	CWeapon* weapon = player->GetWeapon(player->GetCurrentItemId());
+	if (!weapon || !weapon->HasScope())
+		return false;
+
+	SMovementState moveState;
+	player->GetMovementController()->GetMovementState(moveState);
+	Vec3 dir = moveState.fireDirection.GetNormalizedSafe(Vec3(0, 1, 0));
+	Vec3 origin = moveState.weaponPosition;
+
+	// the scope is seen by whichever eye is closest to the line of the barrel
+	float bestDist = FLT_MAX;
+	for (int eye = 0; eye < 2; ++eye)
+	{
+		Vec3 eyePos = gVRRenderer->GetEyeCamera(eye).GetPosition();
+		float dist = (eyePos - origin).Cross(dir).GetLengthSquared();
+		if (dist < bestDist)
+		{
+			bestDist = dist;
+			m_scopeEye = eye;
+		}
+	}
+
+	// centre the scope circle on where the aim point appears in that eye
+	const CCamera& eyeCam = gVRRenderer->GetEyeCamera(m_scopeEye);
+	Vec2i renderSize = GetRenderSize();
+	Vec3 aimPoint = origin + 100.f * dir;
+	Vec3 local = eyeCam.GetMatrix().GetInvertedFast() * aimPoint;
+	if (local.y < 0.01f)
+		return false;
+	float tanV = tanf(eyeCam.GetFov() * 0.5f);
+	float tanH = tanV * renderSize.x / (float)renderSize.y;
+	m_scopeCenterPx.x = (local.x / local.y / tanH * 0.5f + 0.5f) * renderSize.x;
+	m_scopeCenterPx.y = (0.5f - local.z / local.y / tanV * 0.5f) * renderSize.y;
+
+	float viewAngle = DEG2RAD(clamp_tpl(g_pGameCVars->vr_scope_view_size, 2.f, 60.f));
+	m_scopeRadiusPx = tanf(viewAngle * 0.5f) / tanV * renderSize.y * 0.5f;
+
+	// render the magnified view into a centred square of the backbuffer, slightly supersampled
+	squareSize = clamp_tpl((int)(m_scopeRadiusPx * 2.f * 1.5f), 64, min(renderSize.x, renderSize.y));
+
+	// pick the camera FOV so that the centred square covers exactly the magnified field of view
+	float scopeFov = viewAngle / GetScopeMagnification();
+	float cameraFov = 2.f * atanf(tanf(scopeFov * 0.5f) * renderSize.y / (float)squareSize);
+
+	// start the camera in front of the muzzle so the weapon itself (drawn behind it) doesn't block the view
+	Matrix34 scopeTransform(Matrix33::CreateRotationVDir(dir));
+	scopeTransform.SetTranslation(origin + 1.5f * dir);
+	cam.SetMatrix(scopeTransform);
+	cam.SetFrustum(renderSize.x, renderSize.y, cameraFov, cam.GetNearPlane(), cam.GetFarPlane());
+	return true;
+}
+
+void VRManager::CaptureAndCompositeScope(int squareSize)
+{
+	if (!m_device || !m_swapchain || !m_eyeTextures[m_scopeEye] || squareSize <= 0)
+		return;
+
+	ComPtr<ID3D10Texture2D> backbuffer;
+	m_swapchain->GetBuffer(0, __uuidof(ID3D10Texture2D), (void**)backbuffer.GetAddressOf());
+	if (!backbuffer)
+		return;
+	D3D10_TEXTURE2D_DESC bbDesc;
+	backbuffer->GetDesc(&bbDesc);
+	squareSize = min(squareSize, (int)min(bbDesc.Width, bbDesc.Height));
+
+	// (re)create the scope texture if needed
+	D3D10_TEXTURE2D_DESC scopeDesc = {};
+	if (m_scopeTexture)
+		m_scopeTexture->GetDesc(&scopeDesc);
+	if (!m_scopeTexture || scopeDesc.Width != (UINT)squareSize)
+	{
+		D3D10_TEXTURE2D_DESC desc = {};
+		desc.Width = squareSize;
+		desc.Height = squareSize;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.ArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Usage = D3D10_USAGE_DEFAULT;
+		desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+		m_scopeView.Reset();
+		if (FAILED(m_device->CreateTexture2D(&desc, nullptr, m_scopeTexture.ReleaseAndGetAddressOf())))
+			return;
+		CHECK_D3D10(m_device->CreateShaderResourceView(m_scopeTexture.Get(), nullptr, m_scopeView.ReleaseAndGetAddressOf()));
+	}
+
+	// with MSAA the backbuffer needs to be resolved before we can copy a region of it
+	ID3D10Texture2D* source = backbuffer.Get();
+	if (bbDesc.SampleDesc.Count > 1)
+	{
+		D3D10_TEXTURE2D_DESC resolveDesc = {};
+		if (m_scopeResolveTexture)
+			m_scopeResolveTexture->GetDesc(&resolveDesc);
+		if (!m_scopeResolveTexture || resolveDesc.Width != bbDesc.Width || resolveDesc.Height != bbDesc.Height)
+		{
+			D3D10_TEXTURE2D_DESC desc = bbDesc;
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+			desc.BindFlags = 0;
+			desc.MiscFlags = 0;
+			desc.CPUAccessFlags = 0;
+			desc.Usage = D3D10_USAGE_DEFAULT;
+			if (FAILED(m_device->CreateTexture2D(&desc, nullptr, m_scopeResolveTexture.ReleaseAndGetAddressOf())))
+				return;
+		}
+		m_device->ResolveSubresource(m_scopeResolveTexture.Get(), 0, backbuffer.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+		source = m_scopeResolveTexture.Get();
+	}
+
+	D3D10_BOX box;
+	box.left = (bbDesc.Width - squareSize) / 2;
+	box.top = (bbDesc.Height - squareSize) / 2;
+	box.front = 0;
+	box.right = box.left + squareSize;
+	box.bottom = box.top + squareSize;
+	box.back = 1;
+	m_device->CopySubresourceRegion(m_scopeTexture.Get(), 0, 0, 0, 0, source, 0, &box);
+
+	// draw it into the eye texture, which we still hold the lock for until the frame is submitted
+	if (!m_eyeRenderTargets[m_scopeEye])
+	{
+		CHECK_D3D10(m_device->CreateRenderTargetView(m_eyeTextures[m_scopeEye].Get(), nullptr, m_eyeRenderTargets[m_scopeEye].ReleaseAndGetAddressOf()));
+		if (!m_eyeRenderTargets[m_scopeEye])
+			return;
+	}
+
+	gVRRenderUtils->DrawScopeView(m_eyeRenderTargets[m_scopeEye].Get(), m_scopeView.Get(),
+		m_scopeCenterPx.x - m_scopeRadiusPx, m_scopeCenterPx.y - m_scopeRadiusPx, 2.f * m_scopeRadiusPx);
 }
