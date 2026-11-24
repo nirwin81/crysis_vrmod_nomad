@@ -28,7 +28,7 @@ You can grab weapons with both hands to reduce spread and recoil. Bring your off
 If your weapon has a scope equipped, you can enable the scope mode by grabbing the weapon with both hands and then moving your weapon hand close to your head. Move your hand away from your head or let go with the off hand to exit the scope mode.
 If the scope has multiple zoom levels, you can choose between them by moving the right thumbstick up or down.
 
-By default, the scope mode keeps you in VR: a magnified view with a reticle appears inside the scope, in the eye you are aiming with, while the rest of the world stays in 3D around it. You can change how large the magnified view appears with "Scope view size" in the VR settings.
+By default, the scope mode keeps you in VR: the magnified view with a reticle appears on the back lens of the scope, in the eye you are aiming with, while the rest of the world stays in 3D around it. Like a real scope, it looks larger the closer you bring your eye to it. While you look through the scope, the weapon gets the same accuracy bonus as when scoped in the original game. Weapons whose scope is built into the weapon model show the magnified view floating just in front of your eye instead; "Scope view size" in the VR settings changes how large it appears.
 
 If you prefer the game's original scope view instead, enable "Switch to 2D zoomed view when aiming down scopes" in the VR settings. In that mode, the VR view will deactivate while scoped, and you will instead see the scope view on a screen in front of you. You can still aim the weapon with both of your hands.
 

@@ -44,8 +44,9 @@ public:
     void Init(ID3D10Device* device);
     void Shutdown();
     void CopyEyeToScreenMirror(ID3D10ShaderResourceView* eyeTexture, const RectF& bounds);
-    // draws the round scope view into target, covering the square at (x, y) with the given size in pixels
-    void DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, float x, float y, float size);
+    // draws the round scope view into target, mapped onto an eyepiece disc as seen on screen: center is the disc
+    // centre in pixels, right and down are the on-screen offsets (in pixels) of the disc's right and bottom edges
+    void DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, const Vec2& center, const Vec2& right, const Vec2& down);
 
 private:
     ComPtr<ID3D10Device> m_device;
@@ -53,6 +54,7 @@ private:
     ComPtr<ID3D10PixelShader> m_drawTexturePixelShader;
     ComPtr<ID3D10PixelShader> m_scopeViewPixelShader;
     ComPtr<ID3D10SamplerState> m_linearSampler;
+    ComPtr<ID3D10Buffer> m_scopeViewParams;
     ComPtr<ID3D10SamplerState> m_sampler;
     ComPtr<ID3D10RasterizerState> m_rasterizerState;
     ComPtr<ID3D10BlendState> m_srcAlphaBlend;

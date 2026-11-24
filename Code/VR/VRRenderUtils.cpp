@@ -85,6 +85,13 @@ void VRRenderUtils::Init(ID3D10Device* device)
 	sd.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
 	CHECK_D3D10(m_device->CreateSamplerState(&sd, m_linearSampler.ReleaseAndGetAddressOf()));
 	CHECK_D3D10(m_device->CreatePixelShader(g_ShaderScopeViewPS, sizeof(g_ShaderScopeViewPS), m_scopeViewPixelShader.ReleaseAndGetAddressOf()));
+	{
+		D3D10_BUFFER_DESC bd = {};
+		bd.ByteWidth = 2 * 4 * sizeof(float);
+		bd.Usage = D3D10_USAGE_DEFAULT;
+		bd.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+		CHECK_D3D10(m_device->CreateBuffer(&bd, nullptr, m_scopeViewParams.ReleaseAndGetAddressOf()));
+	}
 
 	D3D10_RASTERIZER_DESC rd;
 	rd.FillMode = D3D10_FILL_SOLID;
@@ -130,6 +137,7 @@ void VRRenderUtils::Shutdown()
 	m_linearSampler.Reset();
 	m_drawTexturePixelShader.Reset();
 	m_scopeViewPixelShader.Reset();
+	m_scopeViewParams.Reset();
 	m_fullScreenTriVertexShader.Reset();
 	m_device.Reset();
 }
@@ -192,24 +200,48 @@ void VRRenderUtils::CopyEyeToScreenMirror(ID3D10ShaderResourceView* eyeTexture, 
 	m_device->Draw(3, 0);
 }
 
-void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, float x, float y, float size)
+void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, const Vec2& center, const Vec2& right, const Vec2& down)
 {
-	if (!m_device || !target || !scopeTexture || !m_scopeViewPixelShader || size < 1.f)
+	if (!m_device || !target || !scopeTexture || !m_scopeViewPixelShader || !m_scopeViewParams)
+		return;
+
+	// on screen, disc point p (-1..1, y down) lands at center + p.x * right + p.y * down
+	float det = right.x * down.y - down.x * right.y;
+	if (fabsf(det) < 1.f)
+		return; // seen edge-on or too small to matter
+
+	// the full screen triangle covers the viewport, which we place over the ellipse's bounding box
+	Vec2 extent(fabsf(right.x) + fabsf(down.x), fabsf(right.y) + fabsf(down.y));
+	float left = floorf(center.x - extent.x) - 1.f;
+	float top = floorf(center.y - extent.y) - 1.f;
+	float width = ceilf(2.f * extent.x) + 2.f;
+	float height = ceilf(2.f * extent.y) + 2.f;
+	if (width > 16384.f || height > 16384.f)
 		return;
 
 	D3D10StateGuard stateGuard(m_device.Get());
 
 	m_device->OMSetRenderTargets(1, &target, nullptr);
 
-	// the full screen triangle covers the viewport, which we place over the scope circle's bounding square
 	D3D10_VIEWPORT vp;
-	vp.TopLeftX = (INT)x;
-	vp.TopLeftY = (INT)y;
-	vp.Width = (UINT)size;
-	vp.Height = (UINT)size;
+	vp.TopLeftX = (INT)left;
+	vp.TopLeftY = (INT)top;
+	vp.Width = (UINT)width;
+	vp.Height = (UINT)height;
 	vp.MinDepth = 0;
 	vp.MaxDepth = 1;
 	m_device->RSSetViewports(1, &vp);
+
+	// invert the mapping: pixel q = (left, top) + texcoord * (width, height)  ->  p = inverse * (q - center)
+	float inv00 = down.y / det, inv01 = -down.x / det;
+	float inv10 = -right.y / det, inv11 = right.x / det;
+	Vec2 o(left - center.x, top - center.y);
+	float params[8] = {
+		inv00 * width, inv01 * height, inv00 * o.x + inv01 * o.y, 0,
+		inv10 * width, inv11 * height, inv10 * o.x + inv11 * o.y, 0,
+	};
+	m_device->UpdateSubresource(m_scopeViewParams.Get(), 0, nullptr, params, 0, 0);
+	m_device->PSSetConstantBuffers(0, 1, m_scopeViewParams.GetAddressOf());
 
 	m_device->OMSetBlendState(m_NoBlend.Get(), nullptr, 0xffffffff);
 	m_device->OMSetDepthStencilState(m_disableDepth.Get(), 0);

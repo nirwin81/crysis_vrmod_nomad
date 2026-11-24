@@ -154,6 +154,8 @@ private:
 	void ReleaseTextureSync(ID3D11Texture2D* target, int key);
 
 	Ang3 m_smoothedWeaponAngles;
+	Quat m_smoothedWeaponRotation = Quat(IDENTITY);
+	bool m_smoothedWeaponRotationValid = false;
 	Quat m_smoothedBinocularRotation = Quat(IDENTITY);
 	float m_binocularFrameTime = -100.f;
 
@@ -186,8 +188,12 @@ private:
 	int m_scopeZoomStep = 1;
 	EntityId m_scopeWeaponId = 0;
 	int m_scopeEye = 0;
-	Vec2 m_scopeCenterPx = Vec2(0, 0);
-	float m_scopeRadiusPx = 0;
+	EntityId m_scopeModsWeaponId = 0;
+	// per eye: where the eyepiece disc lands on screen
+	Vec2 m_scopeCenterPx[2];
+	Vec2 m_scopeRightPx[2];
+	Vec2 m_scopeDownPx[2];
+	bool m_scopeEyeVisible[2] = { false, false };
 	void ReleaseScopeResources();
 
 	int m_numFailedSyncs = 0;

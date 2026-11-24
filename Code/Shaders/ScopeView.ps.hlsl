@@ -1,25 +1,33 @@
-// Draws the magnified scope image as a round eyepiece with a simple reticle.
-// Used with FullScreenTri.vs.hlsl and a viewport covering the scope circle's bounding square.
+// Draws the magnified scope image onto the scope's eyepiece, with a simple reticle.
+// Used with FullScreenTri.vs.hlsl and a viewport covering the eyepiece's on-screen bounding box.
+// The eyepiece is a disc seen at an angle, i.e. an ellipse on screen; discFromViewport maps viewport
+// coordinates (0..1) to coordinates on the disc (-1..1, y down), so the image sticks to the eyepiece.
 Texture2D scopeTex;
 SamplerState scopeSampler;
 
+cbuffer ScopeParams : register(b0)
+{
+	float4 discFromViewportX; // p.x = dot(xy, texcoord) + z
+	float4 discFromViewportY; // p.y = dot(xy, texcoord) + z
+};
+
 float4 main(in float4 position : SV_POSITION, in float2 texcoord : TEXCOORD0) : SV_TARGET
 {
-	// -1..1 across the scope circle
-	float2 p = texcoord * 2.0 - 1.0;
+	float2 p = float2(dot(discFromViewportX.xy, texcoord) + discFromViewportX.z,
+	                  dot(discFromViewportY.xy, texcoord) + discFromViewportY.z);
 	float r = length(p);
 	if (r > 1.0)
 		discard;
 
-	float3 color = scopeTex.Sample(scopeSampler, texcoord).rgb;
+	float3 color = scopeTex.Sample(scopeSampler, p * 0.5 + 0.5).rgb;
 
 	// darken towards the rim like a real eyepiece
 	color *= 1.0 - smoothstep(0.82, 1.0, r);
 
 	// reticle: thin crosshair in the middle, thicker posts towards the edge
 	float2 a = abs(p);
-	bool thinLine = a.x < 0.004 || a.y < 0.004;
-	bool post = (a.x < 0.02 && a.y > 0.45) || (a.y < 0.02 && a.x > 0.45);
+	bool thinLine = a.x < 0.006 || a.y < 0.006;
+	bool post = (a.x < 0.025 && a.y > 0.45) || (a.y < 0.025 && a.x > 0.45);
 	if (thinLine || post)
 		color = float3(0, 0, 0);
 

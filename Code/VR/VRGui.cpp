@@ -268,7 +268,7 @@ void VRGui::DrawSettingsMenu()
 		if (!scope2D)
 		{
 			ImGui::SliderFloat("Scope view size (deg)", &g_pGameCVars->vr_scope_view_size, 5.f, 40.f, "%.0f");
-			ImGui::SetItemTooltip("How large the magnified scope image appears in the eye you aim with");
+			ImGui::SetItemTooltip("Scope accessories show the magnified image on their back lens. This sets how large it appears for weapons where the scope lens can't be found");
 		}
 
 		bool binocularsVRZoom = g_pGameCVars->vr_binoculars_vr_zoom;

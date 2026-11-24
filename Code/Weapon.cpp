@@ -3720,6 +3720,65 @@ bool CWeapon::GetScopePosition(Vec3& pos)
 	return false;
 }
 
+bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
+{
+	// the optical axis runs through the scope position (as used for the 2D scope view) along the weapon
+	Vec3 axisPoint;
+	if (!GetScopePosition(axisPoint))
+		return false;
+
+	const Matrix34& weaponTM = GetEntity()->GetWorldTM();
+	forward = weaponTM.GetColumn1().GetNormalizedSafe(Vec3(0, 1, 0));
+	Vec3 right = weaponTM.GetColumn0().GetNormalizedSafe(Vec3(1, 0, 0));
+	Vec3 up = forward.Cross(right).GetNormalizedSafe(Vec3(0, 0, 1));
+	if (up.Dot(weaponTM.GetColumn2()) < 0)
+		up = -up;
+
+	for (TAccessoryMap::const_iterator it = m_accessories.begin(); it != m_accessories.end(); ++it)
+	{
+		CItem* pScope = static_cast<CItem*>(m_pItemSystem->GetItem(it->second));
+		if (!pScope || !pScope->GetParams().scopeAttachment)
+			continue;
+		SAccessoryParams* params = GetAccessoryParams(it->first);
+		if (!params)
+			continue;
+
+		// bounds of the scope model, in the space of the attachment point it is mounted on
+		IEntity* pScopeEntity = pScope->GetEntity();
+		AABB bounds;
+		if (IStatObj* pObj = pScopeEntity->GetStatObj(eIGS_FirstPerson))
+			bounds = pObj->GetAABB();
+		else if (ICharacterInstance* pChar = pScopeEntity->GetCharacter(eIGS_FirstPerson))
+			bounds = pChar->GetAABB();
+		else
+			return false;
+		if (bounds.IsReset() || bounds.IsEmpty())
+			return false;
+
+		Matrix34 attachTM(GetSlotHelperRotation(eIGS_FirstPerson, params->attach_helper.c_str(), true),
+			GetSlotHelperPos(eIGS_FirstPerson, params->attach_helper.c_str(), true));
+		Matrix34 geomTM = attachTM * pScopeEntity->GetSlotLocalTM(eIGS_FirstPerson, false);
+
+		// measure the model along the weapon's axes: its rear end, and its width
+		float rear = FLT_MAX, minX = FLT_MAX, maxX = -FLT_MAX;
+		for (int i = 0; i < 8; ++i)
+		{
+			Vec3 corner((i & 1) ? bounds.max.x : bounds.min.x, (i & 2) ? bounds.max.y : bounds.min.y, (i & 4) ? bounds.max.z : bounds.min.z);
+			Vec3 rel = geomTM.TransformPoint(corner) - axisPoint;
+			rear = min(rear, rel.Dot(forward));
+			minX = min(minX, rel.Dot(right));
+			maxX = max(maxX, rel.Dot(right));
+		}
+
+		// the eyepiece lens is a bit smaller than the widest part of the scope
+		radius = clamp_tpl(0.4f * (maxX - minX), 0.012f, 0.035f);
+		center = axisPoint + forward * rear;
+		return true;
+	}
+
+	return false;
+}
+
 bool CWeapon::HasScope() const
 {
 	if (m_useViewMode)
