@@ -37,6 +37,7 @@ private:
 	void ProcessNormalRoll();
 	void ProcessAngularImpulses();
 	void ProcessNormal();
+	void ProcessVRMountedHandAim();
 	void ProcessLean();
 	void ProcessFreeFall();
 	void ProcessParachute();

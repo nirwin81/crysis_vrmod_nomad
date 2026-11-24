@@ -7,6 +7,7 @@
 #include "GameUtils.h"
 #include "GameCVars.h"
 #include "Item.h"
+#include "VR/VRManager.h"
 
 #define ENABLE_NAN_CHECK
 
@@ -90,6 +91,7 @@ void CPlayerRotation::Process()
 	else
 	{
 		ProcessNormalRoll();
+		ProcessVRMountedHandAim();
 		ClampAngles();
 		ProcessNormal();
 	}
@@ -463,6 +465,23 @@ void CPlayerRotation::ProcessAngularImpulses()
 		Interpolate(m_angularImpulse,ZERO,m_stats.angularImpulseDeceleration, m_frameTime);
 	}
 	m_angularImpulseDelta -= m_angularImpulse;
+}
+
+void CPlayerRotation::ProcessVRMountedHandAim()
+{
+	// VR: a mounted weapon follows the player's view direction, so steer the view towards the direction that puts the
+	// weapon's grips at the player's hands. ClampAngles afterwards keeps it inside the mount's yaw and pitch limits.
+	if (!m_stats.mountedWeaponID || !gVR)
+		return;
+
+	CPlayer* pPlayer = const_cast<CPlayer*>(&m_player);
+	Vec3 aimDir;
+	if (!gVR->GetMountedWeaponHandAim(pPlayer, aimDir))
+		return;
+
+	Vec3 localDir = m_baseQuat.GetInverted() * aimDir;
+	m_deltaAngles.z = cry_atan2f(-localDir.x, localDir.y);
+	m_deltaAngles.x = asinf(clamp_tpl(localDir.z, -1.f, 1.f)) - GetLocalPitch();
 }
 
 void CPlayerRotation::ClampAngles()

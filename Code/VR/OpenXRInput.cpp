@@ -756,6 +756,12 @@ void OpenXRInput::UpdatePlayerMovement()
 			pitch = 0;
 		}
 
+		if (!inHud && usingMountedGun && gVR->IsMountedHandAimActive(pPlayer))
+		{
+			// the mounted weapon is aimed with the hands, so the stick must not turn it as well
+			yaw = pitch = 0;
+		}
+
 		input->OnAction(g_pGameActions->xi_rotatepitch, eAAM_Always, pitch * (g_pGameCVars->vr_vehicle_invert_y ? -1 : 1));
 		input->OnAction(g_pGameActions->xi_rotateyaw, eAAM_Always, yaw);
 		return;

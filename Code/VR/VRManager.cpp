@@ -711,6 +711,22 @@ Matrix34 VRManager::GetBaseVRTransform(bool smooth) const
 	bool inVehicle = pPlayer && pPlayer->GetLinkedVehicle();
 	bool mountedWeapon = pPlayer && pPlayer->GetActorStats()->mountedWeaponID;
 
+	if (mountedWeapon && !isCutscene && !isNonPlayerView && !inVehicle && IsMountedHandAimActive(pPlayer))
+	{
+		// Keep the VR origin fixed where the game would put the gunner's eyes when facing the mount direction.
+		// The view then does not turn with the gun, so the player's own head position and orientation move them
+		// around the weapon, and the hands (which aim the gun) are not dragged along by the gun's rotation.
+		const SActorParams* params = pPlayer->GetActorParams();
+		Vec3 mountDir = params->vLimitDir;
+		mountDir.z = 0;
+		mountDir.NormalizeSafe(Vec3(0, 1, 0));
+		Vec3 position = params->viewPivot + mountDir * params->viewDistance + Vec3(0, 0, 0.25f + params->viewHeightOffset);
+		position.z -= m_hmdReferenceHeight;
+		float yaw = cry_atan2f(-mountDir.x, mountDir.y);
+		m_updatedViewYaw = yaw;
+		return Matrix34::CreateRotationXYZ(Ang3(0, 0, yaw), position);
+	}
+
 	if (isCutscene || isNonPlayerView || inVehicle || !pPlayer || mountedWeapon)
 	{
 		CCamera cam = gVRRenderer->GetCurrentViewCamera();
@@ -860,6 +876,14 @@ void VRManager::Update()
 
 	bool showHudFixed= g_pGame->GetHUD() && g_pGame->GetHUD()->ShouldDisplayHUDFixed();
 	CPlayer* player = GetLocalPlayer();
+	bool handAimingMount = player && player->GetActorStats()->mountedWeaponID && IsMountedHandAimActive(player);
+	if (handAimingMount != m_wasHandAimingMount)
+	{
+		// re-center, so that the player's current physical position and facing become the gunner position
+		RecalibrateView();
+		m_wasHandAimingMount = handAimingMount;
+	}
+	UpdateMountedWeaponGrips(player);
 	CWeapon* weapon = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
 	bool isWeaponZoom = weapon && (weapon->IsZoomed() || weapon->IsZooming());
 	if (gVRRenderer->AreBinocularsActive())
@@ -885,6 +909,107 @@ void VRManager::Update()
 		SetHudInFrontOfPlayer(g_pGameCVars->vr_map_distance, g_pGameCVars->vr_map_size, g_pGameCVars->vr_map_height, g_pGameCVars->vr_map_offset);
 	else
 		SetHudInFrontOfPlayer();
+}
+
+bool VRManager::IsMountedHandAimActive(CPlayer* pPlayer) const
+{
+	if (!g_pGameCVars->vr_mounted_hand_aim || !pPlayer || !pPlayer->IsClient())
+		return false;
+	if (!pPlayer->GetActorStats()->mountedWeaponID || pPlayer->GetLinkedVehicle())
+		return false;
+	if (!gVRRenderer->ShouldRenderVR() || g_pGame->GetMenu()->IsMenuActive())
+		return false;
+	return pPlayer->GetActorParams()->viewPivot.len2() > 0;
+}
+
+CItem* VRManager::GetMountedWeaponItem(CPlayer* pPlayer) const
+{
+	if (!pPlayer || !pPlayer->GetActorStats()->mountedWeaponID)
+		return nullptr;
+	IItem* pItem = g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(pPlayer->GetActorStats()->mountedWeaponID);
+	return pItem ? static_cast<CItem*>(pItem) : nullptr;
+}
+
+void VRManager::UpdateMountedWeaponGrips(CPlayer* pPlayer)
+{
+	CItem* pGun = IsMountedHandAimActive(pPlayer) ? GetMountedWeaponItem(pPlayer) : nullptr;
+	for (int side = 0; side < 2; ++side)
+	{
+		float grip = gXR->GetInput()->GetGripAmount(side);
+		float prevGrip = m_prevMountGripAmount[side];
+		m_prevMountGripAmount[side] = grip;
+
+		if (!pGun)
+		{
+			m_mountGripped[side] = false;
+			continue;
+		}
+
+		if (m_mountGripped[side])
+		{
+			if (grip < 0.4f)
+				m_mountGripped[side] = false;
+		}
+		else if (grip >= 0.6f && prevGrip < 0.6f)
+		{
+			// a hand takes hold of the grip on its own side, if it is close enough to it
+			Vec3 handlePos = pGun->GetEntity()->GetWorldTM().TransformPoint(pGun->GetMountedHandlePosLocal(side));
+			Vec3 handPos = GetWorldControllerTransform(side).GetTranslation();
+			if ((handPos - handlePos).GetLengthSquared() <= sqr(0.25f))
+			{
+				m_mountGripped[side] = true;
+				gXR->GetInput()->SendHapticEvent(side == 0 ? LEFT_HAND : RIGHT_HAND, 0.05f, 0.4f);
+			}
+		}
+	}
+}
+
+bool VRManager::GetMountedWeaponHandAim(CPlayer* pPlayer, Vec3& aimDir)
+{
+	if (!IsMountedHandAimActive(pPlayer) || !(m_mountGripped[0] || m_mountGripped[1]))
+		return false;
+	CItem* pGun = GetMountedWeaponItem(pPlayer);
+	if (!pGun)
+		return false;
+
+	// The gun turns around its entity origin (see CItem::UpdateMounted). Find the yaw and pitch that put the
+	// gripped handle(s) onto the gripping hand(s): with both hands, the midpoints of both are matched.
+	Vec3 handleLocal(ZERO), handsWorld(ZERO);
+	int count = 0;
+	for (int side = 0; side < 2; ++side)
+	{
+		if (!m_mountGripped[side])
+			continue;
+		handleLocal += pGun->GetMountedHandlePosLocal(side);
+		handsWorld += GetWorldControllerTransform(side).GetTranslation();
+		++count;
+	}
+	handleLocal /= (float)count;
+	handsWorld /= (float)count;
+
+	Vec3 toHands = handsWorld - pGun->GetEntity()->GetWorldPos();
+
+	// The gun's orientation is Rz(yaw) * Rx(pitch) (CreateRotationVDir without roll). The sideways offset of the
+	// handle (local X) is unaffected by pitch, so first solve pitch in the gun's vertical plane...
+	float flatDist = Vec2(toHands.x, toHands.y).GetLength();
+	if (flatDist <= fabsf(handleLocal.x) + 0.05f)
+		return false; // hands too close to the pivot horizontally: the aim is undefined, keep it as is
+	float inPlaneDist = sqrtf(sqr(flatDist) - sqr(handleLocal.x));
+	// grips usually sit behind the pivot (negative local Y), so the barrel points away from the hands
+	float inPlaneTarget = handleLocal.y <= 0 ? -inPlaneDist : inPlaneDist;
+	// rotating about X by p adds p to the handle's angle atan2(z, y)
+	float pitch = cry_atan2f(toHands.z, inPlaneTarget) - cry_atan2f(handleLocal.z, handleLocal.y);
+	while (pitch > gf_PI) pitch -= 2 * gf_PI;
+	while (pitch < -gf_PI) pitch += 2 * gf_PI;
+	pitch = clamp_tpl(pitch, -1.5f, 1.5f);
+
+	// ...then yaw: rotating about Z by a adds a to the pitched handle's horizontal angle atan2(y, x)
+	float pitchedY = handleLocal.y * cosf(pitch) - handleLocal.z * sinf(pitch);
+	float yaw = cry_atan2f(toHands.y, toHands.x) - cry_atan2f(pitchedY, handleLocal.x);
+
+	float c = cosf(pitch);
+	aimDir = Vec3(-c * sinf(yaw), c * cosf(yaw), sinf(pitch));
+	return true;
 }
 
 bool VRManager::RecalibrateView()

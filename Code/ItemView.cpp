@@ -375,6 +375,22 @@ void CItem::UpdateMounted(float frameTime)
 }
 
 //------------------------------------------------------------------------
+Vec3 CItem::GetMountedHandlePosLocal(int side)
+{
+	// used when the weapon does not define grip helpers: two grips behind the pivot
+	const Vec3 fallback(side == 0 ? -0.2f : 0.2f, -0.6f, 0.f);
+	const ItemString& helper = side == 0 ? m_mountparams.left_hand_helper : m_mountparams.right_hand_helper;
+	if (helper.empty())
+		return fallback;
+
+	Vec3 pos = GetSlotHelperPos(eIGS_FirstPerson, helper.c_str(), false);
+	// the grip must sit noticeably away from the pivot, or the aim becomes unstable
+	if (pos.GetLength() < 0.1f)
+		return fallback;
+	return pos;
+}
+
+//------------------------------------------------------------------------
 void CItem::UpdateIKMounted(IActor* pActor, const Vec3& vGunXAxis)
 {
 	

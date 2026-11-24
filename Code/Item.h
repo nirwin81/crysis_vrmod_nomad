@@ -999,6 +999,8 @@ public:
 	uint GetCurrentAnimationStart(int slot);
 	void DrawSlot(int slot, bool draw, bool near=false);
 	Vec3 GetSlotHelperPos(int slot, const char *helper, bool worldSpace, bool relative=false);
+	// VR: position of a mounted weapon's hand grip (0 = left, 1 = right), in the weapon entity's local space
+	Vec3 GetMountedHandlePosLocal(int side);
 	const Matrix33 &GetSlotHelperRotation(int slot, const char *helper, bool worldSpace, bool relative=false);
 	void StopSound(tSoundID id);
 	void Quiet();

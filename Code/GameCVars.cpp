@@ -887,6 +887,7 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_weapon_crosshair", &vr_weapon_crosshair, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, displays a simple crosshair for player weapons to assist with aiming in VR");
 	pConsole->Register("vr_vehicle_crosshair", &vr_vehicle_crosshair, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, displays a simple crosshair for vehicle weapons to assist with aiming in VR");
 	pConsole->Register("vr_cutscenes_angle_snap", &vr_cutscenes_angle_snap, 45, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Ignores camera rotation in cutscenes until the angle difference reaches this value, then snaps the angle to the new value");
+	pConsole->Register("vr_mounted_hand_aim", &vr_mounted_hand_aim, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Aim mounted weapons with your hands: grip a handle with the hand on its side, and the weapon follows the gripping hand (or the midpoint of both). Your head moves freely around it");
 	pConsole->Register("vr_cinema_3d", &vr_cinema_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, whenever the game switches to a cinema mode (e.g. binoculars, weapon scopes or cutscenes), the cinema will render in 3D");
 	pConsole->Register("vr_scope_2d", &vr_scope_2d, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, bringing a scoped weapon up to your eye switches to the game's zoomed scope view on a 2D screen");
 	pConsole->Register("vr_scope_view_size", &vr_scope_view_size, 14.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "Apparent size in degrees of the magnified scope view shown in one eye when vr_scope_2d is off (2-60)");
@@ -939,6 +940,7 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_weapon_angle_offset", true);
 	pConsole->UnregisterVariable("vr_enable_crosshair", true);
 	pConsole->UnregisterVariable("vr_cutscenes_angle_snap", true);
+	pConsole->UnregisterVariable("vr_mounted_hand_aim", true);
 	pConsole->UnregisterVariable("vr_cinema_3d", true);
 	pConsole->UnregisterVariable("vr_cinema_3d_eye_dist", true);
 	pConsole->UnregisterVariable("vr_scope_2d", true);

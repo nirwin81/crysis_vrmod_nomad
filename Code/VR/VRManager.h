@@ -78,6 +78,10 @@ public:
 
 	void Update();
 	bool RecalibrateView();
+	bool IsMountedHandAimActive(CPlayer* pPlayer) const;
+	// world-space aim direction for a mounted weapon that puts its grips at the midpoint of the player's hands
+	bool GetMountedWeaponHandAim(CPlayer* pPlayer, Vec3& aimDir);
+	bool IsMountedWeaponGripped(int side) const { return m_mountGripped[side & 1]; }
 
 	void SetHudInFrontOfPlayer(float distance = 5.f, float width = 4.f, float height = 0.f, float horizontal = 0.f);
 	void SetHudAttachedToHead();
@@ -161,6 +165,11 @@ private:
 
 	bool m_wasInMenu = false;
 	bool m_menuAnchored = false;
+	bool m_wasHandAimingMount = false;
+	bool m_mountGripped[2] = { false, false };
+	float m_prevMountGripAmount[2] = { 0, 0 };
+	class CItem* GetMountedWeaponItem(CPlayer* pPlayer) const;
+	void UpdateMountedWeaponGrips(CPlayer* pPlayer);
 
 	bool m_offHandFollowsWeapon = false;
 

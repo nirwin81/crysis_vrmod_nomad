@@ -34,6 +34,11 @@ If you prefer the game's original scope view instead, enable "Switch to 2D zoome
 
 *Note*: for activating the scope view, the distance between your hand and your head matters, *not* the distance between the visible scope and the head. This may feel a bit unintuitive initially, but I don't have easy access to the actual scope's position.
 
+## Mounted guns
+Mounted guns are aimed with your hands. Grab the turret handles with the grip buttons, the gun turns to follow your hand. You can steer with one hand or with both. Let go of grip to release the handle, and the gun stays where you left it. Your view does not turn with the gun. To swing it far to the side, turn your body or walk around the mount, as you would with a real gun. When you take a mounted gun, your view is re-centered so that you stand behind it.
+
+If you prefer aiming mounted guns with the thumbstick, turn off "Aim mounted guns with your hands" in the VR settings.
+
 ## Throwing grenades
 Once you have picked up some grenades, you can throw them with your weapon hand's B/Y button. Hold the button to prime the throw, then let go to throw the grenade in the direction of your weapon aim.
 If you have more than one type of grenades, a short press of the B/Y button will cycle through the available grenade types.

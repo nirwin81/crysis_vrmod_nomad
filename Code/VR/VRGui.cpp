@@ -203,6 +203,10 @@ void VRGui::DrawSettingsMenu()
 		bool invertVehicleY = g_pGameCVars->vr_vehicle_invert_y;
 		ImGui::Checkbox("Invert look Y-axis for vehicles and mounted guns", &invertVehicleY);
 		g_pGameCVars->vr_vehicle_invert_y = invertVehicleY;
+		bool mountedHandAim = g_pGameCVars->vr_mounted_hand_aim;
+		ImGui::Checkbox("Aim mounted guns with your hands", &mountedHandAim);
+		ImGui::SetItemTooltip("Press grip near the gun's left or right handle to hold it; the gun follows one or both holding hands. Walk or turn around the gun to cover its full range.\nWhen off, mounted guns are aimed with the thumbstick.");
+		g_pGameCVars->vr_mounted_hand_aim = mountedHandAim;
 		ImGui::SliderFloat("Vehicle aim speed", &g_pGameCVars->vr_controller_vehicle_speed, 0.1f, 2.0f, "%.2f");
 
 		ImGui::Text("Movement relative to");

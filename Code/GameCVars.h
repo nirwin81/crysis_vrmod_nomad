@@ -444,6 +444,7 @@ struct SCVars
 	float vr_binoculars_smoothing;
 	int vr_binoculars_toggle;
 	float vr_cutscenes_angle_snap;
+	int vr_mounted_hand_aim;
 	float vr_yaw_deadzone_angle;
 	int vr_shadow_optimization;
 	float vr_resolution_scale;
