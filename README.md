@@ -74,10 +74,6 @@ should feel familiar to experienced VR players. Some notable controls you should
 There are ingame HUD hints that explain some of the general controls as they come up. The mod also features an extensive manual that you
 can find in the main menu through the "VR Manual" button. Refer to it any time you need to look up how to do something. :)
 
-#### Current shortcomings / caveats
-
-- vehicle and stationary guns are aimed with the right thumbstick rather than controller/head orientation
-
 
 ## Notes on performance
 
@@ -106,3 +102,17 @@ This mod depends on and includes the alternative Crysis launcher by [ccomrade](h
 This mod is developed and its source code is covered under the CryENGINE 2 Mod SDK license which you can review in the `LICENSE.txt` file.
 
 This mod is not endorsed by or affiliated with Crytek or Electronic Arts.  Trademarks are the property of their respective owners.  Game content copyright Crytek.
+
+## What has changed from fholger's mod?
+
+* Turrets are now used with motion controls.
+* Weapon scopes work properly.
+* Binoculars work properly.
+* Aim-down-sights gun positioning fixed.
+* Objective screen's map can now be zoomed in/out and panned.
+* Visual accessibility improvements (menus can be positioned to suit your needs)
+
+## Donations
+
+If you find value in my contributions, feel free to leave me a tip on Ko-Fi.
+[![Support me on Ko-fi](https://i.imghos.co/IFtvHDJt.png)](https://ko-fi.com/F1F31QWA3V)
