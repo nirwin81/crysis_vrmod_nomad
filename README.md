@@ -1,8 +1,6 @@
-# Crysis VR Mod
+# Crysis VR Nomad Mod
 
-[![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/fholger)
-
-[Crysis VR website](https://crysis.vrmods.eu)
+[Original Crysis VR website](https://crysis.vrmods.eu)
 
 This is a mod for the 2007 Crytek game *Crysis* which makes it possible to experience it in Virtual Reality, with full 6DOF tracking
 and motion controller support.
