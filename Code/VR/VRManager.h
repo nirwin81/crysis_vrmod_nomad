@@ -169,7 +169,6 @@ private:
 	bool m_menuAnchored = false;
 	bool m_wasHandAimingMount = false;
 	bool m_mountGripped[2] = { false, false };
-	float m_prevMountGripAmount[2] = { 0, 0 };
 	class CItem* GetMountedWeaponItem(CPlayer* pPlayer) const;
 	void UpdateMountedWeaponGrips(CPlayer* pPlayer);
 
@@ -189,6 +188,7 @@ private:
 	EntityId m_scopeWeaponId = 0;
 	int m_scopeEye = 0;
 	EntityId m_scopeModsWeaponId = 0;
+	EntityId m_scopeFallbackLoggedFor = 0;
 	// per eye: where the eyepiece disc lands on screen
 	Vec2 m_scopeCenterPx[2];
 	Vec2 m_scopeRightPx[2];

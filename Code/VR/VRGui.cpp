@@ -205,8 +205,13 @@ void VRGui::DrawSettingsMenu()
 		g_pGameCVars->vr_vehicle_invert_y = invertVehicleY;
 		bool mountedHandAim = g_pGameCVars->vr_mounted_hand_aim;
 		ImGui::Checkbox("Aim mounted guns with your hands", &mountedHandAim);
-		ImGui::SetItemTooltip("Press grip near the gun's left or right handle to hold it; the gun follows one or both holding hands. Walk or turn around the gun to cover its full range.\nWhen off, mounted guns are aimed with the thumbstick.");
+		ImGui::SetItemTooltip("Your hands take hold of the gun's handles automatically when they come close; the gun follows one or both holding hands. Walk or turn around the gun to cover its full range.\nWhen off, mounted guns are aimed with the thumbstick.");
 		g_pGameCVars->vr_mounted_hand_aim = mountedHandAim;
+		if (mountedHandAim)
+		{
+			ImGui::SliderFloat("Mounted gun stand closer", &g_pGameCVars->vr_mounted_gun_closer, 0.f, 1.5f, "%.2f m");
+			ImGui::SetItemTooltip("How much closer than the game's gunner camera you stand to a mounted gun, so its handles are within reach");
+		}
 		ImGui::SliderFloat("Vehicle aim speed", &g_pGameCVars->vr_controller_vehicle_speed, 0.1f, 2.0f, "%.2f");
 
 		ImGui::Text("Movement relative to");

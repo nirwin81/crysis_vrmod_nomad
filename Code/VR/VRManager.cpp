@@ -750,7 +750,9 @@ Matrix34 VRManager::GetBaseVRTransform(bool smooth) const
 		Vec3 mountDir = params->vLimitDir;
 		mountDir.z = 0;
 		mountDir.NormalizeSafe(Vec3(0, 1, 0));
-		Vec3 position = params->viewPivot + mountDir * params->viewDistance + Vec3(0, 0, 0.25f + params->viewHeightOffset);
+		// the game's gunner camera sits further back than arms can reach in VR; move it towards the gun
+		float closer = clamp_tpl(g_pGameCVars->vr_mounted_gun_closer, -1.f, 2.f);
+		Vec3 position = params->viewPivot + mountDir * (params->viewDistance + closer) + Vec3(0, 0, 0.25f + params->viewHeightOffset);
 		position.z -= m_hmdReferenceHeight;
 		float yaw = cry_atan2f(-mountDir.x, mountDir.y);
 		m_updatedViewYaw = yaw;
@@ -962,34 +964,34 @@ CItem* VRManager::GetMountedWeaponItem(CPlayer* pPlayer) const
 
 void VRManager::UpdateMountedWeaponGrips(CPlayer* pPlayer)
 {
+	// Hands attach to the handle on their own side automatically when they come close to it, no button needed.
+	// They stay attached while near it, and let go when pulled well away, so one hand can be taken off while the
+	// other keeps steering. Attaching only when close keeps the gun from swinging to wherever the hands are on mount.
+	const float attachDistance = 0.2f;
+	const float detachDistance = 0.45f;
+
 	CItem* pGun = IsMountedHandAimActive(pPlayer) ? GetMountedWeaponItem(pPlayer) : nullptr;
 	for (int side = 0; side < 2; ++side)
 	{
-		float grip = gXR->GetInput()->GetGripAmount(side);
-		float prevGrip = m_prevMountGripAmount[side];
-		m_prevMountGripAmount[side] = grip;
-
 		if (!pGun)
 		{
 			m_mountGripped[side] = false;
 			continue;
 		}
 
+		Vec3 handlePos = pGun->GetEntity()->GetWorldTM().TransformPoint(pGun->GetMountedHandlePosLocal(side));
+		Vec3 handPos = GetWorldControllerTransform(side).GetTranslation();
+		float distSq = (handPos - handlePos).GetLengthSquared();
+
 		if (m_mountGripped[side])
 		{
-			if (grip < 0.4f)
+			if (distSq > sqr(detachDistance))
 				m_mountGripped[side] = false;
 		}
-		else if (grip >= 0.6f && prevGrip < 0.6f)
+		else if (distSq <= sqr(attachDistance))
 		{
-			// a hand takes hold of the grip on its own side, if it is close enough to it
-			Vec3 handlePos = pGun->GetEntity()->GetWorldTM().TransformPoint(pGun->GetMountedHandlePosLocal(side));
-			Vec3 handPos = GetWorldControllerTransform(side).GetTranslation();
-			if ((handPos - handlePos).GetLengthSquared() <= sqr(0.25f))
-			{
-				m_mountGripped[side] = true;
-				gXR->GetInput()->SendHapticEvent(side == 0 ? LEFT_HAND : RIGHT_HAND, 0.05f, 0.4f);
-			}
+			m_mountGripped[side] = true;
+			gXR->GetInput()->SendHapticEvent(side == 0 ? LEFT_HAND : RIGHT_HAND, 0.05f, 0.4f);
 		}
 	}
 }
@@ -1846,6 +1848,11 @@ bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
 	{
 		axis = moveState.fireDirection.GetNormalizedSafe(Vec3(0, 1, 0));
 		eyepiece = muzzle;
+		if (weapon->GetEntityId() != m_scopeFallbackLoggedFor)
+		{
+			CryLogAlways("VR scope: no scope lens found on %s, showing the scope view in front of the eye instead", weapon->GetEntity()->GetClass()->GetName());
+			m_scopeFallbackLoggedFor = weapon->GetEntityId();
+		}
 	}
 
 	// the scope is seen by whichever eye is closest to its optical axis

@@ -11,6 +11,7 @@ History:
 
 *************************************************************************/
 #include "StdAfx.h"
+#include <StringUtils.h>
 #include "Game.h"
 #include "GameCVars.h"
 #include <IEntitySystem.h>
@@ -3722,11 +3723,6 @@ bool CWeapon::GetScopePosition(Vec3& pos)
 
 bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 {
-	// the optical axis runs through the scope position (as used for the 2D scope view) along the weapon
-	Vec3 axisPoint;
-	if (!GetScopePosition(axisPoint))
-		return false;
-
 	const Matrix34& weaponTM = GetEntity()->GetWorldTM();
 	forward = weaponTM.GetColumn1().GetNormalizedSafe(Vec3(0, 1, 0));
 	Vec3 right = weaponTM.GetColumn0().GetNormalizedSafe(Vec3(1, 0, 0));
@@ -3737,42 +3733,72 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 	for (TAccessoryMap::const_iterator it = m_accessories.begin(); it != m_accessories.end(); ++it)
 	{
 		CItem* pScope = static_cast<CItem*>(m_pItemSystem->GetItem(it->second));
-		if (!pScope || !pScope->GetParams().scopeAttachment)
+		if (!pScope)
+			continue;
+		// only the sniper scope (and the LAW's sight) are flagged as scope attachments; the assault scope is not,
+		// so recognise scopes by their class name as well
+		bool flagged = pScope->GetParams().scopeAttachment != 0;
+		const char* className = pScope->GetEntity()->GetClass()->GetName();
+		if (!flagged && !CryStringUtils::stristr(className, "scope"))
 			continue;
 		SAccessoryParams* params = GetAccessoryParams(it->first);
 		if (!params)
 			continue;
 
-		// bounds of the scope model, in the space of the attachment point it is mounted on
+		// bounds of the scope model and their placement: the model is mounted on the weapon's attachment point
 		IEntity* pScopeEntity = pScope->GetEntity();
-		AABB bounds;
-		if (IStatObj* pObj = pScopeEntity->GetStatObj(eIGS_FirstPerson))
-			bounds = pObj->GetAABB();
-		else if (ICharacterInstance* pChar = pScopeEntity->GetCharacter(eIGS_FirstPerson))
-			bounds = pChar->GetAABB();
-		else
-			return false;
-		if (bounds.IsReset() || bounds.IsEmpty())
-			return false;
-
 		Matrix34 attachTM(GetSlotHelperRotation(eIGS_FirstPerson, params->attach_helper.c_str(), true),
 			GetSlotHelperPos(eIGS_FirstPerson, params->attach_helper.c_str(), true));
-		Matrix34 geomTM = attachTM * pScopeEntity->GetSlotLocalTM(eIGS_FirstPerson, false);
-
-		// measure the model along the weapon's axes: its rear end, and its width
-		float rear = FLT_MAX, minX = FLT_MAX, maxX = -FLT_MAX;
-		for (int i = 0; i < 8; ++i)
+		AABB bounds;
+		bounds.Reset();
+		Matrix34 geomTM = attachTM;
+		const int slots[] = { eIGS_FirstPerson, eIGS_Aux1, eIGS_ThirdPerson };
+		for (int k = 0; k < 3 && bounds.IsReset(); ++k)
 		{
-			Vec3 corner((i & 1) ? bounds.max.x : bounds.min.x, (i & 2) ? bounds.max.y : bounds.min.y, (i & 4) ? bounds.max.z : bounds.min.z);
-			Vec3 rel = geomTM.TransformPoint(corner) - axisPoint;
+			if (IStatObj* pObj = pScopeEntity->GetStatObj(slots[k]))
+				bounds = pObj->GetAABB();
+			else if (ICharacterInstance* pChar = pScopeEntity->GetCharacter(slots[k]))
+				bounds = pChar->GetAABB();
+			else
+				continue;
+			geomTM = attachTM * pScopeEntity->GetSlotLocalTM(slots[k], false);
+		}
+		if (bounds.IsReset())
+		{
+			pScopeEntity->GetLocalBounds(bounds);
+			geomTM = attachTM;
+		}
+		if (bounds.IsReset() || bounds.IsEmpty())
+			continue;
+
+		// measure the model along the weapon's axes, relative to the attachment point
+		Vec3 base = attachTM.GetTranslation();
+		float rear = FLT_MAX, minX = FLT_MAX, maxX = -FLT_MAX, maxZ = -FLT_MAX, minZ = FLT_MAX;
+		for (int c = 0; c < 8; ++c)
+		{
+			Vec3 corner((c & 1) ? bounds.max.x : bounds.min.x, (c & 2) ? bounds.max.y : bounds.min.y, (c & 4) ? bounds.max.z : bounds.min.z);
+			Vec3 rel = geomTM.TransformPoint(corner) - base;
 			rear = min(rear, rel.Dot(forward));
 			minX = min(minX, rel.Dot(right));
 			maxX = max(maxX, rel.Dot(right));
+			minZ = min(minZ, rel.Dot(up));
+			maxZ = max(maxZ, rel.Dot(up));
+		}
+		float width = maxX - minX;
+		// the eyepiece lens is a bit smaller than the widest part of the scope
+		radius = clamp_tpl(0.4f * width, 0.012f, 0.035f);
+
+		// The optical axis: for flagged scopes the game knows a point on it (used for the 2D scope view).
+		// Otherwise assume a tube as wide as the model, sitting at the top of it, centred left to right.
+		Vec3 axisPoint;
+		if (!flagged || !GetScopePosition(axisPoint))
+		{
+			float axisZ = max(maxZ - 0.5f * width, 0.5f * (minZ + maxZ));
+			axisPoint = base + right * (0.5f * (minX + maxX)) + up * axisZ;
 		}
 
-		// the eyepiece lens is a bit smaller than the widest part of the scope
-		radius = clamp_tpl(0.4f * (maxX - minX), 0.012f, 0.035f);
-		center = axisPoint + forward * rear;
+		// the rear end of the model, on the optical axis
+		center = axisPoint + forward * (rear - (axisPoint - base).Dot(forward));
 		return true;
 	}
 
@@ -3893,7 +3919,7 @@ void CWeapon::PostProcessArms()
 		HideArm(0);
 	}
 
-	if (g_pGameCVars->vr_weapon_hand == 0 && GetEntity()->GetClass() != CItem::sFistsClass && GetEntity()->GetClass() != CItem::sOffHandClass && !IsDualWield())
+	if (g_pGameCVars->vr_weapon_hand == 0 && GetEntity()->GetClass() != CItem::sFistsClass && GetEntity()->GetClass() != CItem::sOffHandClass && !IsDualWield() && !IsMounted())
 	{
 		// unfortunately we have to hide the arms when attached to the weapon, since we can't seem to mirror the models
 		HideArm(0);
@@ -3901,19 +3927,28 @@ void CWeapon::PostProcessArms()
 			HideArm(1);
 	}
 
+	CActor* owner = GetOwnerActor();
+	bool ownerOnMountedGun = owner && owner->GetActorStats() && owner->GetActorStats()->mountedWeaponID != 0;
+
 	if (GetEntity()->GetClass() == CItem::sOffHandClass)
 	{
 		COffHand* offHand = static_cast<COffHand*>(this);
 		CWeapon* mainWeapon = offHand->GetMainHandWeapon();
-		if (mainWeapon)
+		if (ownerOnMountedGun)
+		{
+			// on a mounted gun, both hands are shown by the gun itself, holding its handles
+			offHand->HideArm(0);
+			offHand->HideArm(1);
+		}
+		else if (mainWeapon)
 		{
 			// hide unneeded arm
 			offHand->HideArm(1);
 		}
 	}
-	else
+	else if (!IsMounted())
 	{
-		CWeapon* off = GetOwnerActor()->GetWeaponByClass(CItem::sOffHandClass);
+		CWeapon* off = owner ? owner->GetWeaponByClass(CItem::sOffHandClass) : nullptr;
 		if (off && off->IsSelected())
 		{
 			// hide unneeded arm
