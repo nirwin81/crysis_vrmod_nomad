@@ -371,6 +371,28 @@ void VRRenderer::RenderScopeView(SystemRenderFunc renderFunc, ISystem* pSystem)
 	pSystem->SetViewCamera(scopeCam);
 	m_viewCamOverridden = true;
 
+	// Screen-space effects (pain/explosion radial blur, blood, frost, droplets...) are meant for the eyes, not the
+	// scope optics. On the small centre crop that gets magnified onto the lens they turn into streaks from the
+	// middle, which can stay for a long time (the pain blur lasts until health recovers). Switch them off for this pass.
+	static const char* const suppressedEffects[] = {
+		"FilterRadialBlurring_Amount",
+		"FilterBlurring_Amount",
+		"FilterMaskedBlurring_Amount",
+		"ScreenCondensation_Amount",
+		"BloodSplats_Amount",
+		"ScreenFrost_Amount",
+		"WaterDroplets_Amount",
+	};
+	const int numSuppressed = sizeof(suppressedEffects) / sizeof(suppressedEffects[0]);
+	float suppressedValues[numSuppressed];
+	for (int i = 0; i < numSuppressed; ++i)
+	{
+		suppressedValues[i] = 0;
+		gEnv->p3DEngine->GetPostEffectParam(suppressedEffects[i], suppressedValues[i]);
+		if (suppressedValues[i] != 0)
+			gEnv->p3DEngine->SetPostEffectParam(suppressedEffects[i], 0.f);
+	}
+
 	// only the centred square is used, so try to limit rendering to it
 	Vec2i renderSize = gVR->GetRenderSize();
 	gEnv->pRenderer->SetScissor((renderSize.x - squareSize) / 2, (renderSize.y - squareSize) / 2, squareSize, squareSize);
@@ -382,6 +404,12 @@ void VRRenderer::RenderScopeView(SystemRenderFunc renderFunc, ISystem* pSystem)
 	gEnv->pRenderer->SetScissor(0, 0, renderSize.x, renderSize.y);
 	pSystem->SetViewCamera(m_originalViewCamera);
 	m_viewCamOverridden = false;
+
+	for (int i = 0; i < numSuppressed; ++i)
+	{
+		if (suppressedValues[i] != 0)
+			gEnv->p3DEngine->SetPostEffectParam(suppressedEffects[i], suppressedValues[i]);
+	}
 
 	gVR->CaptureAndCompositeScope(squareSize);
 

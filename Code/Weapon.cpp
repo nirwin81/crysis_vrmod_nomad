@@ -3786,7 +3786,7 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 		}
 		float width = maxX - minX;
 		// the eyepiece lens is a bit smaller than the widest part of the scope
-		radius = clamp_tpl(0.4f * width, 0.012f, 0.035f);
+		radius = clamp_tpl(0.36f * width, 0.011f, 0.032f);
 
 		// The optical axis: for flagged scopes the game knows a point on it (used for the 2D scope view).
 		// Otherwise assume a tube as wide as the model, sitting at the top of it, centred left to right.
@@ -3799,6 +3799,18 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 
 		// the rear end of the model, on the optical axis
 		center = axisPoint + forward * (rear - (axisPoint - base).Dot(forward));
+
+		// corrections found by testing, in multiples of the lens radius (downwards)
+		float lower = 0.f;
+		if (!flagged)
+			lower = 0.55f; // assault scope (shotgun, FY71): the axis estimate from the bounds sits too high
+		else if (pScope->GetParams().scopeAttachment == 2)
+			lower = 1.0f; // rocket launcher sight: the game's scope position (made for the 2D view) sits too high
+		center -= up * (lower * radius);
+
+		// live tuning
+		center += up * (g_pGameCVars->vr_scope_lens_raise * radius);
+		radius *= clamp_tpl(g_pGameCVars->vr_scope_lens_scale, 0.2f, 5.f);
 		return true;
 	}
 
