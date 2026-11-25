@@ -3802,15 +3802,28 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 
 		// corrections found by testing, in multiples of the lens radius (downwards)
 		float lower = 0.f;
+		float sizeScale = 1.f;
 		if (!flagged)
-			lower = 0.55f; // assault scope (shotgun, FY71): the axis estimate from the bounds sits too high
+		{
+			// assault scope (shotgun, FY71): the axis estimate from the bounds sits too high, and the image a bit
+			// behind the lens
+			lower = 0.85f;
+			center += forward * 0.003f;
+		}
 		else if (pScope->GetParams().scopeAttachment == 2)
-			lower = 1.0f; // rocket launcher sight: the game's scope position (made for the 2D view) sits too high
+		{
+			// rocket launcher sight: the game's scope position (made for the 2D view) sits too high and too far
+			// back, and the lens is smaller than the model's width suggests
+			lower = 2.2f;
+			center += forward * 0.012f;
+			sizeScale = 0.75f;
+		}
 		center -= up * (lower * radius);
 
-		// live tuning
+		// live tuning (applied before the size correction, like the values above were measured)
 		center += up * (g_pGameCVars->vr_scope_lens_raise * radius);
-		radius *= clamp_tpl(g_pGameCVars->vr_scope_lens_scale, 0.2f, 5.f);
+		center += forward * (0.01f * g_pGameCVars->vr_scope_lens_forward);
+		radius *= sizeScale * clamp_tpl(g_pGameCVars->vr_scope_lens_scale, 0.2f, 5.f);
 		return true;
 	}
 

@@ -448,6 +448,7 @@ struct SCVars
 	float vr_mounted_gun_closer;
 	float vr_scope_lens_raise;
 	float vr_scope_lens_scale;
+	float vr_scope_lens_forward;
 	float vr_yaw_deadzone_angle;
 	int vr_shadow_optimization;
 	float vr_resolution_scale;
