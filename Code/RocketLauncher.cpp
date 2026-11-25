@@ -613,8 +613,24 @@ Matrix34 CRocketLauncher::GetInverseGripTransform()
 	Matrix34 transform = GetSlotHelperRotation(eIGS_FirstPerson, "weapon", false);
 	transform.SetTranslation(GetSlotHelperPos(eIGS_FirstPerson, "weapon", false));
 	transform = transform * m_gripCorrection;
+	if (Matrix33(GetEntity()->GetSlotLocalTM(eIGS_FirstPerson, false)).Determinant() < 0)
+	{
+		// The model is shown mirrored (left-handed experiment): the helper above already comes out mirrored (M * H).
+		// The grip for the mirrored weapon is the mirror image of the normal one, M * H * C * M, which is a proper
+		// transform again, so the weapon placed from it stays unmirrored and the slot's mirror does the rest.
+		transform = transform * Matrix34(Matrix33::CreateScale(Vec3(-1.f, 1.f, 1.f)));
+	}
 	transform.InvertFast();
 	return transform;
+}
+
+//===============================================
+bool CRocketLauncher::WantsVRMirror()
+{
+	if (!g_pGameCVars->vr_mirror_left_handed_launcher || g_pGameCVars->vr_weapon_hand != 0)
+		return false;
+	CActor* owner = GetOwnerActor();
+	return owner && owner->IsClient() && !owner->IsThirdPerson();
 }
 
 //===============================================

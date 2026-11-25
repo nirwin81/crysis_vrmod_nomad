@@ -91,6 +91,31 @@ void CItem::UpdateFPPosition(float frameTime)
 }
 
 //------------------------------------------------------------------------
+Matrix34 CItem::GetVRUnmirroredSlotLocalTM(int slot)
+{
+	Matrix34 tm = GetEntity()->GetSlotLocalTM(slot, false);
+	// only remove the mirror if it is still there: the game may have reset the slot transform since
+	if (slot == eIGS_FirstPerson && m_vrSlotMirrored && Matrix33(tm).Determinant() < 0)
+		return m_vrSlotMirror * tm; // the mirror is its own inverse
+	return tm;
+}
+
+//------------------------------------------------------------------------
+void CItem::SetVRSlotMirror(bool mirrored, const Matrix34& mirror)
+{
+	if (!GetEntity()->IsSlotValid(eIGS_FirstPerson))
+	{
+		m_vrSlotMirrored = false;
+		return;
+	}
+	Matrix34 original = GetVRUnmirroredSlotLocalTM(eIGS_FirstPerson);
+	m_vrSlotMirrored = mirrored;
+	if (mirrored)
+		m_vrSlotMirror = mirror;
+	GetEntity()->SetSlotLocalTM(eIGS_FirstPerson, mirrored ? mirror * original : original);
+}
+
+//------------------------------------------------------------------------
 void CItem::UpdateFPCharacter(float frameTime)
 {
 	if (IsClient())
@@ -101,6 +126,11 @@ void CItem::UpdateFPCharacter(float frameTime)
 			PlayAction(m_idleAnimation[eIGS_FirstPerson], 0, true);
 	}
 
+	// VR left-handed experiment: mirror the first person model left to right, across the weapon's own YZ plane
+	bool mirror = WantsVRMirror();
+	if (mirror != m_vrSlotMirrored)
+		SetVRSlotMirror(mirror, Matrix34(Matrix33::CreateScale(Vec3(-1.f, 1.f, 1.f))));
+
 	// need to explicitly update characters at this point
 	// cause the entity system update occered earlier, with the last position
 	for (int i=0; i<eIGS_Last; i++)
@@ -110,7 +140,8 @@ void CItem::UpdateFPCharacter(float frameTime)
 			ICharacterInstance *pCharacter = GetEntity()->GetCharacter(i);
 			if (pCharacter)
 			{
-				Matrix34 mloc = GetEntity()->GetSlotLocalTM(i,false);
+				// the skeleton works with a QuatT location, which can't represent a mirror: use the unmirrored one
+				Matrix34 mloc = GetVRUnmirroredSlotLocalTM(i);
 				Matrix34 m34=GetEntity()->GetWorldTM()*mloc;
 				QuatT renderLocation = QuatT(m34);
 				pCharacter->GetISkeletonPose()->SetForceSkeletonUpdate(8);
@@ -118,6 +149,25 @@ void CItem::UpdateFPCharacter(float frameTime)
 				pCharacter->SkeletonPostProcess(renderLocation, renderLocation, 0, 1.0f, 0x55 );
 			}
 		}
+	}
+
+	// Accessories (e.g. a scope) are separate entities placed on the unmirrored model by the character attachments.
+	// Mirror each one across the same plane as the weapon: with A its placement and W the weapon's, its model
+	// is shown at W * M * W^-1 * A, which as an extra slot transform on A is L^-1 * M * L with L = W^-1 * A.
+	for (TAccessoryMap::iterator it = m_accessories.begin(); it != m_accessories.end(); ++it)
+	{
+		CItem* pAccessory = static_cast<CItem*>(m_pItemSystem->GetItem(it->second));
+		if (!pAccessory)
+			continue;
+		if (!mirror)
+		{
+			if (pAccessory->IsVRSlotMirrored())
+				pAccessory->SetVRSlotMirror(false, Matrix34(IDENTITY));
+			continue;
+		}
+		Matrix34 L = GetEntity()->GetWorldTM().GetInverted() * pAccessory->GetEntity()->GetWorldTM();
+		Matrix34 K = L.GetInverted() * Matrix34(Matrix33::CreateScale(Vec3(-1.f, 1.f, 1.f))) * L;
+		pAccessory->SetVRSlotMirror(true, K);
 	}
 
 	IEntityRenderProxy *pProxy=GetRenderProxy();

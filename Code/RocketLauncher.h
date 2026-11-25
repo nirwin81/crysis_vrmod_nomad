@@ -74,6 +74,7 @@ private:
 	// VR
 public:
 	Matrix34 GetInverseGripTransform() override;
+	bool WantsVRMirror() override;
 };
 
 

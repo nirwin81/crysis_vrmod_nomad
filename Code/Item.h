@@ -999,6 +999,14 @@ public:
 	uint GetCurrentAnimationStart(int slot);
 	void DrawSlot(int slot, bool draw, bool near=false);
 	Vec3 GetSlotHelperPos(int slot, const char *helper, bool worldSpace, bool relative=false);
+	// VR: optional mirror applied on top of the first person slot's local transform (left-handed experiment).
+	// The mirror must be its own inverse (a reflection), as is any conjugate of a reflection.
+	void SetVRSlotMirror(bool mirrored, const Matrix34& mirror);
+	bool IsVRSlotMirrored() const { return m_vrSlotMirrored; }
+	// the slot's local transform without that mirror
+	Matrix34 GetVRUnmirroredSlotLocalTM(int slot);
+	// whether this item's first person model should be shown mirrored (overridden by weapons that support it)
+	virtual bool WantsVRMirror() { return false; }
 	// VR: position of a mounted weapon's hand grip (0 = left, 1 = right), in the weapon entity's local space
 	Vec3 GetMountedHandlePosLocal(int side);
 	const Matrix33 &GetSlotHelperRotation(int slot, const char *helper, bool worldSpace, bool relative=false);
@@ -1257,6 +1265,8 @@ protected:
 
 	SParams								m_params;
 	SMountParams					m_mountparams;
+	bool									m_vrSlotMirrored = false;
+	Matrix34							m_vrSlotMirror;
 	SStats								m_stats;
 	SEditorStats					m_editorstats;
 	SCameraAnimationStats	m_camerastats;
