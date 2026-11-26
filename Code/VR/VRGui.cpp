@@ -180,13 +180,6 @@ void VRGui::DrawSettingsMenu()
 		ImGui::RadioButton("Left##weapon", &g_pGameCVars->vr_weapon_hand, 0);
 		ImGui::SameLine();
 		ImGui::RadioButton("Right##weapon", &g_pGameCVars->vr_weapon_hand, 1);
-		if (g_pGameCVars->vr_weapon_hand == 0)
-		{
-			bool mirrorLauncher = g_pGameCVars->vr_mirror_left_handed_launcher != 0;
-			ImGui::Checkbox("Mirror rocket launcher (experimental)", &mirrorLauncher);
-			ImGui::SetItemTooltip("Show the rocket launcher mirrored, so it sits in the left hand like a left-handed weapon");
-			g_pGameCVars->vr_mirror_left_handed_launcher = mirrorLauncher ? 1 : 0;
-		}
 
 		ImGui::Text("Movement hand");
 		ImGui::SetItemTooltip("This hand's thumbstick is used for moving, other hand for turning");

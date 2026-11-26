@@ -7,7 +7,7 @@ $DateTime$
 
 -------------------------------------------------------------------------
 History:
-- 22:8:2005   12:50 : Created by Mï¿½rcio Martins
+- 22:8:2005   12:50 : Created by M�rcio Martins
 
 *************************************************************************/
 #include "StdAfx.h"
@@ -3761,8 +3761,7 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 				bounds = pChar->GetAABB();
 			else
 				continue;
-			// the attachment point already carries the weapon's mirror, if any, so use the scope's own unmirrored transform
-			geomTM = attachTM * pScope->GetVRUnmirroredSlotLocalTM(slots[k]);
+			geomTM = attachTM * pScopeEntity->GetSlotLocalTM(slots[k], false);
 		}
 		if (bounds.IsReset())
 		{
@@ -3949,8 +3948,7 @@ void CWeapon::PostProcessArms()
 	{
 		// unfortunately we have to hide the arms when attached to the weapon, since we can't seem to mirror the models
 		HideArm(0);
-		// a mirrored model would also mirror the arms, which the arm IK isn't set up for
-		if (gVR->IsOffHandGrabbingWeapon() || IsReloading() || IsVRSlotMirrored())
+		if (gVR->IsOffHandGrabbingWeapon() || IsReloading())
 			HideArm(1);
 	}
 
