@@ -321,7 +321,7 @@ public:
 	void    OnZoomOut();
 	bool    GetScopePosition(Vec3& pos);
 	// VR: centre and radius of the scope's eyepiece (rear lens) in world space, and the scope's forward axis
-	bool    GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius);
+	bool    GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius, float& recess);
 
 	bool HasScope() const;
 

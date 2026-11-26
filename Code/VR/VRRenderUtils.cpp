@@ -87,7 +87,7 @@ void VRRenderUtils::Init(ID3D10Device* device)
 	CHECK_D3D10(m_device->CreatePixelShader(g_ShaderScopeViewPS, sizeof(g_ShaderScopeViewPS), m_scopeViewPixelShader.ReleaseAndGetAddressOf()));
 	{
 		D3D10_BUFFER_DESC bd = {};
-		bd.ByteWidth = 2 * 4 * sizeof(float);
+		bd.ByteWidth = 4 * 4 * sizeof(float);
 		bd.Usage = D3D10_USAGE_DEFAULT;
 		bd.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
 		CHECK_D3D10(m_device->CreateBuffer(&bd, nullptr, m_scopeViewParams.ReleaseAndGetAddressOf()));
@@ -200,14 +200,17 @@ void VRRenderUtils::CopyEyeToScreenMirror(ID3D10ShaderResourceView* eyeTexture, 
 	m_device->Draw(3, 0);
 }
 
-void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, const Vec2& center, const Vec2& right, const Vec2& down)
+void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderResourceView* scopeTexture, const Vec2& center, const Vec2& right, const Vec2& down,
+	const Vec2& imageCenter, const Vec2& imageRight, const Vec2& imageDown)
 {
 	if (!m_device || !target || !scopeTexture || !m_scopeViewPixelShader || !m_scopeViewParams)
 		return;
 
 	// on screen, disc point p (-1..1, y down) lands at center + p.x * right + p.y * down
+	// (center/right/down: the scope's rear opening, the visible area; image*: the image disc, possibly deeper inside)
 	float det = right.x * down.y - down.x * right.y;
-	if (fabsf(det) < 1.f)
+	float imageDet = imageRight.x * imageDown.y - imageDown.x * imageRight.y;
+	if (fabsf(det) < 1.f || fabsf(imageDet) < 1.f)
 		return; // seen edge-on or too small to matter
 
 	// the full screen triangle covers the viewport, which we place over the ellipse's bounding box
@@ -232,14 +235,21 @@ void VRRenderUtils::DrawScopeView(ID3D10RenderTargetView* target, ID3D10ShaderRe
 	vp.MaxDepth = 1;
 	m_device->RSSetViewports(1, &vp);
 
-	// invert the mapping: pixel q = (left, top) + texcoord * (width, height)  ->  p = inverse * (q - center)
-	float inv00 = down.y / det, inv01 = -down.x / det;
-	float inv10 = -right.y / det, inv11 = right.x / det;
-	Vec2 o(left - center.x, top - center.y);
-	float params[8] = {
-		inv00 * width, inv01 * height, inv00 * o.x + inv01 * o.y, 0,
-		inv10 * width, inv11 * height, inv10 * o.x + inv11 * o.y, 0,
+	// invert the mappings: pixel q = (left, top) + texcoord * (width, height)  ->  p = inverse * (q - center)
+	float params[16];
+	auto setMapping = [&](float* out, const Vec2& c, const Vec2& r, const Vec2& d, float dt)
+	{
+		float inv00 = d.y / dt, inv01 = -d.x / dt;
+		float inv10 = -r.y / dt, inv11 = r.x / dt;
+		Vec2 o(left - c.x, top - c.y);
+		float m[8] = {
+			inv00 * width, inv01 * height, inv00 * o.x + inv01 * o.y, 0,
+			inv10 * width, inv11 * height, inv10 * o.x + inv11 * o.y, 0,
+		};
+		memcpy(out, m, sizeof(m));
 	};
+	setMapping(params, center, right, down, det);
+	setMapping(params + 8, imageCenter, imageRight, imageDown, imageDet);
 	m_device->UpdateSubresource(m_scopeViewParams.Get(), 0, nullptr, params, 0, 0);
 	m_device->PSSetConstantBuffers(0, 1, m_scopeViewParams.GetAddressOf());
 

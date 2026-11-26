@@ -345,6 +345,31 @@ void VRManager::ModifyViewCamera(int eye, CCamera& cam)
 		viewMat = stabilizedHead * headLocal.GetInvertedFast() * eyeMat;
 		zoomFovScale = 1.f / GetBinocularMagnification();
 	}
+	else if (IsLauncherVRZoomActive())
+	{
+		// rocket launcher sight: look along the launcher from just behind its sight (as the 2D zoom camera does), with a
+		// narrower FOV that the headset shows magnified. The game shows its close-up sight model there. Both eyes use
+		// the same point, since the sight is so close that separate eye positions would split its reticle in two.
+		// The head still sets each eye's orientation relative to the view, so the image stays correct in the headset.
+		CPlayer* player = GetLocalPlayer();
+		CWeapon* weapon = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
+		Matrix34 eyeInHead = GetLocalHmdTransform().GetInvertedFast() * eyeMat;
+		eyeInHead.SetTranslation(Vec3(ZERO));
+		if (weapon)
+		{
+			Vec3 forward = weapon->GetEntity()->GetWorldTM().GetColumn1().GetNormalizedSafe(Vec3(0, 1, 0));
+			Vec3 sightPos;
+			if (!weapon->GetScopePosition(sightPos))
+				sightPos = weapon->GetEntity()->GetWorldPos();
+			Matrix34 sightView(Matrix33::CreateRotationVDir(forward), sightPos - 0.1f * forward);
+			viewMat = sightView * eyeInHead;
+		}
+		else
+		{
+			viewMat = viewMat * eyeMat;
+		}
+		zoomFovScale = 1.f / GetWeaponZoomMagnification();
+	}
 	else
 	{
 		viewMat = viewMat * eyeMat;
@@ -389,6 +414,28 @@ Matrix34 VRManager::GetLocalHmdTransform() const
 	Ang3 angles(hmd);
 	angles.z -= m_referenceYaw;
 	return Matrix34::CreateRotationXYZ(angles, position);
+}
+
+bool VRManager::IsLauncherVRZoomActive() const
+{
+	if (!g_pGameCVars->vr_launcher_vr_zoom || g_pGameCVars->vr_scope_2d)
+		return false;
+	CPlayer* player = GetLocalPlayer();
+	if (!player || player->GetLinkedVehicle() || g_pGame->GetIGameFramework()->GetIViewSystem()->IsPlayingCutScene())
+		return false;
+	CWeapon* weapon = player->GetWeapon(player->GetCurrentItemId());
+	return weapon && weapon->GetEntity()->GetClass() == CItem::sRocketLauncherClass && (weapon->IsZoomed() || weapon->IsZooming());
+}
+
+float VRManager::GetWeaponZoomMagnification() const
+{
+	CPlayer* player = GetLocalPlayer();
+	CWeapon* weapon = player ? player->GetWeapon(player->GetCurrentItemId()) : nullptr;
+	IZoomMode* zm = weapon ? weapon->GetZoomMode(weapon->GetCurrentZoomMode()) : nullptr;
+	if (!zm)
+		return 1.f;
+	float fovScale = zm->GetZoomFoVScale(max(1, zm->GetCurrentStep()));
+	return fovScale > 0.01f ? max(1.f, 1.f / fovScale) : 1.f;
 }
 
 bool VRManager::IsBinocularVRZoomActive() const
@@ -542,13 +589,14 @@ void VRManager::ModifyWeaponPosition(CPlayer* player, Ang3& weaponAngles, Vec3& 
 	weaponPosition = trackedTransform.GetTranslation();
 	weaponAngles = Ang3(trackedTransform);
 
-	if (m_scopeViewActive && !slave && !weapon->IsZoomed())
+	bool launcherVRZoom = IsLauncherVRZoomActive();
+	if (!slave && ((m_scopeViewActive && !weapon->IsZoomed()) || launcherVRZoom))
 	{
 		// VR scope view: keep the weapon exactly as held, roll included, but smooth its rotation since the magnified
 		// view is very sensitive to it. The smoothed weapon has to turn around the hand holding it; turning it around
 		// its own origin would make it drift away from the hand.
 		Quat target = Quat(Matrix33(trackedTransform)).GetNormalized();
-		float factor = 0.03f * cry_powf(GetScopeMagnification(), 1.5f);
+		float factor = 0.03f * cry_powf(launcherVRZoom ? GetWeaponZoomMagnification() : GetScopeMagnification(), 1.5f);
 		float keep = powf(2.f, -gEnv->pSystem->GetITimer()->GetFrameTime() / factor);
 		if (!m_smoothedWeaponRotationValid)
 		{
@@ -927,7 +975,7 @@ void VRManager::Update()
 		else
 			SetHudAttachedToOffHand();
 	}
-	else if (isWeaponZoom)
+	else if (isWeaponZoom && !IsLauncherVRZoomActive())
 		SetHudInFrontOfPlayer();
 	else if (gVRRenderer->ShouldRenderVR() && !showHudFixed)
 	{
@@ -1842,8 +1890,8 @@ bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
 	// the magnified image is shown on the scope's eyepiece (its rear lens); weapons without a scope model
 	// get a virtual eyepiece floating in front of the eye instead
 	Vec3 eyepiece, axis;
-	float radius = 0;
-	bool hasEyepiece = weapon->GetScopeEyepiece(eyepiece, axis, radius);
+	float radius = 0, recess = 0;
+	bool hasEyepiece = weapon->GetScopeEyepiece(eyepiece, axis, radius, recess);
 	if (!hasEyepiece)
 	{
 		axis = moveState.fireDirection.GetNormalizedSafe(Vec3(0, 1, 0));
@@ -1879,8 +1927,7 @@ bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
 	}
 
 	// the eye has to be behind the eyepiece to see it
-	float eyeDistance = (eyepiece - eyePos).GetLength();
-	if ((eyepiece - eyePos).Dot(axis) < 0.005f || eyeDistance < 0.005f)
+	if ((eyepiece - eyePos).Dot(axis) < 0.005f)
 		return false;
 
 	// project the eyepiece disc into that eye: its centre, and where its right and bottom edges land on screen.
@@ -1893,6 +1940,16 @@ bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
 	discRight.Normalize();
 	Matrix33 scopeRotation;
 	scopeRotation.SetFromVectors(discRight, axis, discRight.Cross(axis).GetNormalized());
+
+	// The image can sit deeper inside the scope tube than its rear opening. It is drawn over the finished eye
+	// image, so the tube walls can't hide it: instead it is clipped to the opening, as the rim would do.
+	// Its depth, height and size can be tuned separately from the opening (which the vr_scope_lens_* values place).
+	float imageRadius = radius * clamp_tpl(g_pGameCVars->vr_scope_image_scale, 0.2f, 5.f);
+	Vec3 imageCenter = eyepiece + axis * recess + scopeRotation.GetColumn2() * (g_pGameCVars->vr_scope_image_raise * radius);
+	float eyeDistance = (imageCenter - eyePos).GetLength();
+	if (eyeDistance < 0.005f)
+		return false;
+
 	Vec2i renderSize = GetRenderSize();
 	float tanV = tanf(eyeCam.GetFov() * 0.5f);
 	float tanH = tanV * renderSize.x / (float)renderSize.y;
@@ -1914,27 +1971,32 @@ bool VRManager::SetupScopeCamera(CCamera& cam, int& squareSize)
 		tanV = tanf(projCam.GetFov() * 0.5f);
 		tanH = tanV * renderSize.x / (float)renderSize.y;
 		worldToEye = projCam.GetMatrix().GetInvertedFast();
-		Vec2 rightPx, downPx;
+		Vec2 rightPx, downPx, imageRightPx, imageDownPx;
 		m_scopeEyeVisible[eye] = (projCam.GetPosition() - eyepiece).Dot(axis) < 0
 			&& project(eyepiece, m_scopeCenterPx[eye])
 			&& project(eyepiece + radius * scopeRotation.GetColumn0(), rightPx)
-			&& project(eyepiece - radius * scopeRotation.GetColumn2(), downPx);
+			&& project(eyepiece - radius * scopeRotation.GetColumn2(), downPx)
+			&& project(imageCenter, m_scopeImageCenterPx[eye])
+			&& project(imageCenter + imageRadius * scopeRotation.GetColumn0(), imageRightPx)
+			&& project(imageCenter - imageRadius * scopeRotation.GetColumn2(), imageDownPx);
 		if (m_scopeEyeVisible[eye])
 		{
 			m_scopeRightPx[eye] = rightPx - m_scopeCenterPx[eye];
 			m_scopeDownPx[eye] = downPx - m_scopeCenterPx[eye];
+			m_scopeImageRightPx[eye] = imageRightPx - m_scopeImageCenterPx[eye];
+			m_scopeImageDownPx[eye] = imageDownPx - m_scopeImageCenterPx[eye];
 		}
 	}
 	if (!m_scopeEyeVisible[m_scopeEye])
 		return false;
 
 	// render the magnified view into a centred square of the backbuffer, slightly supersampled
-	float discSizePx = 2.f * max(m_scopeRightPx[m_scopeEye].GetLength(), m_scopeDownPx[m_scopeEye].GetLength());
+	float discSizePx = 2.f * max(m_scopeImageRightPx[m_scopeEye].GetLength(), m_scopeImageDownPx[m_scopeEye].GetLength());
 	squareSize = clamp_tpl((int)(discSizePx * 1.5f), 64, min(renderSize.x, renderSize.y));
 
 	// The eyepiece covers this angle of the eye's view; showing a field of view that much smaller than that keeps the
 	// magnification true wherever the eye is. The camera FOV is chosen so the centred square covers exactly that.
-	float apparentAngle = 2.f * atanf(radius / eyeDistance);
+	float apparentAngle = 2.f * atanf(imageRadius / eyeDistance);
 	float scopeFov = apparentAngle / GetScopeMagnification();
 	float cameraFov = 2.f * atanf(tanf(scopeFov * 0.5f) * renderSize.y / (float)squareSize);
 
@@ -2024,6 +2086,7 @@ void VRManager::CaptureAndCompositeScope(int squareSize)
 			if (!m_eyeRenderTargets[eye])
 				continue;
 		}
-		gVRRenderUtils->DrawScopeView(m_eyeRenderTargets[eye].Get(), m_scopeView.Get(), m_scopeCenterPx[eye], m_scopeRightPx[eye], m_scopeDownPx[eye]);
+		gVRRenderUtils->DrawScopeView(m_eyeRenderTargets[eye].Get(), m_scopeView.Get(), m_scopeCenterPx[eye], m_scopeRightPx[eye], m_scopeDownPx[eye],
+			m_scopeImageCenterPx[eye], m_scopeImageRightPx[eye], m_scopeImageDownPx[eye]);
 	}
 }

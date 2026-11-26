@@ -272,6 +272,10 @@ void VRGui::DrawSettingsMenu()
 		g_pGameCVars->vr_scope_2d = scope2D;
 		if (!scope2D)
 		{
+			bool launcherZoom = g_pGameCVars->vr_launcher_vr_zoom != 0;
+			ImGui::Checkbox("Rocket launcher sight magnifies the VR view", &launcherZoom);
+			ImGui::SetItemTooltip("When aiming down the rocket launcher's sight, magnify the whole view along the launcher and show the game's zoomed sight, like the binoculars");
+			g_pGameCVars->vr_launcher_vr_zoom = launcherZoom ? 1 : 0;
 			ImGui::SliderFloat("Scope view size (deg)", &g_pGameCVars->vr_scope_view_size, 5.f, 40.f, "%.0f");
 			ImGui::SetItemTooltip("Scope accessories show the magnified image on their back lens. This sets how large it appears for weapons where the scope lens can't be found");
 		}

@@ -30,6 +30,8 @@ If the scope has multiple zoom levels, you can choose between them by moving the
 
 By default, the scope mode keeps you in VR: the magnified view with a reticle appears on the back lens of the scope, in the eye you are aiming with, while the rest of the world stays in 3D around it. Like a real scope, it looks larger the closer you bring your eye to it. While you look through the scope, the weapon gets the same accuracy bonus as when scoped in the original game. Weapons whose scope is built into the weapon model show the magnified view floating just in front of your eye instead; "Scope view size" in the VR settings changes how large it appears.
 
+For the rocket launcher, you can enable "Rocket launcher sight magnifies the VR view" in the VR settings. Aiming down its sight then magnifies your whole view along the launcher, with the game's zoomed sight in front of you, much like the binoculars. The view follows the launcher, so keep it pointed where you want to look.
+
 If you prefer the game's original scope view instead, enable "Switch to 2D zoomed view when aiming down scopes" in the VR settings. In that mode, the VR view will deactivate while scoped, and you will instead see the scope view on a screen in front of you. You can still aim the weapon with both of your hands.
 
 *Note*: for activating the scope view, the distance between your hand and your head matters, *not* the distance between the visible scope and the head. This may feel a bit unintuitive initially, but I don't have easy access to the actual scope's position.

@@ -3721,8 +3721,9 @@ bool CWeapon::GetScopePosition(Vec3& pos)
 	return false;
 }
 
-bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
+bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius, float& recess)
 {
+	recess = 0.f;
 	const Matrix34& weaponTM = GetEntity()->GetWorldTM();
 	forward = weaponTM.GetColumn1().GetNormalizedSafe(Vec3(0, 1, 0));
 	Vec3 right = weaponTM.GetColumn0().GetNormalizedSafe(Vec3(1, 0, 0));
@@ -3809,6 +3810,8 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 			// behind the lens
 			lower = 0.85f;
 			center += forward * 0.003f;
+			// the image sits 1cm inside the tube, seen through the rear opening
+			recess = 0.01f;
 		}
 		else if (pScope->GetParams().scopeAttachment == 2)
 		{
@@ -3824,6 +3827,7 @@ bool CWeapon::GetScopeEyepiece(Vec3& center, Vec3& forward, float& radius)
 		center += up * (g_pGameCVars->vr_scope_lens_raise * radius);
 		center += forward * (0.01f * g_pGameCVars->vr_scope_lens_forward);
 		radius *= sizeScale * clamp_tpl(g_pGameCVars->vr_scope_lens_scale, 0.2f, 5.f);
+		recess = clamp_tpl(recess + 0.01f * g_pGameCVars->vr_scope_lens_depth, 0.f, 0.1f);
 		return true;
 	}
 

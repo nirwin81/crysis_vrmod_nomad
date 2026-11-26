@@ -903,7 +903,10 @@ void OpenXRInput::UpdateWeaponScopes()
 		return;
 	}
 
-	if (!g_pGameCVars->vr_scope_2d)
+	// the rocket launcher can instead use the game's zoom, shown magnified inside the VR view (vr_launcher_vr_zoom)
+	bool launcherVRZoom = g_pGameCVars->vr_launcher_vr_zoom && weapon->GetEntity()->GetClass() == CItem::sRocketLauncherClass;
+
+	if (!g_pGameCVars->vr_scope_2d && !launcherVRZoom)
 	{
 		// 2D scope view disabled: never enter weapon zoom, and leave it if the setting was switched off while zoomed
 		if (weapon->IsZoomed() && !weapon->IsZooming())

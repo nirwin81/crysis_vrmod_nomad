@@ -46,6 +46,10 @@ public:
 	void ModifyViewForBinoculars(SViewParams& view);
 	Quat SmoothBinocularRotation(const Quat& target);
 	bool IsBinocularVRZoomActive() const;
+	// rocket launcher aimed down its sight with vr_launcher_vr_zoom: magnified VR view along the launcher
+	bool IsLauncherVRZoomActive() const;
+	// magnification of the current weapon's game zoom (1 when not zoomed)
+	float GetWeaponZoomMagnification() const;
 	float GetBinocularMagnification() const;
 	Matrix34 GetLocalHmdTransform() const;
 	void ModifyCameraFor2D(CCamera& cam);
@@ -189,10 +193,14 @@ private:
 	int m_scopeEye = 0;
 	EntityId m_scopeModsWeaponId = 0;
 	EntityId m_scopeFallbackLoggedFor = 0;
-	// per eye: where the eyepiece disc lands on screen
+	// per eye: where the eyepiece's rear opening lands on screen (the visible area)...
 	Vec2 m_scopeCenterPx[2];
 	Vec2 m_scopeRightPx[2];
 	Vec2 m_scopeDownPx[2];
+	// ...and the image disc, which may sit deeper inside the tube
+	Vec2 m_scopeImageCenterPx[2];
+	Vec2 m_scopeImageRightPx[2];
+	Vec2 m_scopeImageDownPx[2];
 	bool m_scopeEyeVisible[2] = { false, false };
 	void ReleaseScopeResources();
 

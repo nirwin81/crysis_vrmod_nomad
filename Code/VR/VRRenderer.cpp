@@ -256,8 +256,9 @@ bool VRRenderer::ShouldRenderVR() const
 	{
 		if (CWeapon* weapon = pPlayer->GetWeapon(pPlayer->GetCurrentItemId(false)))
 		{
-			// binoculars are handled below
-			if ((weapon->IsZoomed() || weapon->IsZooming()) && weapon->GetEntity()->GetClass() != CItem::sBinocularsClass)
+			// binoculars are handled below; the rocket launcher can zoom inside the VR view (vr_launcher_vr_zoom)
+			if ((weapon->IsZoomed() || weapon->IsZooming()) && weapon->GetEntity()->GetClass() != CItem::sBinocularsClass
+				&& !gVR->IsLauncherVRZoomActive())
 				return false;
 		}
 
@@ -314,6 +315,11 @@ void VRRenderer::RenderSingleEye(int eye, SystemRenderFunc renderFunc, ISystem* 
 		gVR->ModifyViewCamera(eye, eyeCam);
 		m_eyeCams[eye] = eyeCam;
 		float fov = eyeCam.GetFov();
+		if (gVR->IsLauncherVRZoomActive())
+		{
+			// the magnification is for the world only: draw the weapon (the close-up sight) at its normal size
+			fov = 2.f * atanf(tanf(fov * 0.5f) * gVR->GetWeaponZoomMagnification());
+		}
 		gEnv->pRenderer->EF_Query(EFQ_DrawNearFov, (INT_PTR)&fov);
 	}
 	else

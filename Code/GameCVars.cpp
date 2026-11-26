@@ -892,6 +892,10 @@ void SCVars::InitVRCVars(IConsole* pConsole)
 	pConsole->Register("vr_scope_lens_raise", &vr_scope_lens_raise, 0.f, VF_RESTRICTEDMODE, "Tuning: moves the scope image on the scope lens up (positive) or down (negative), in multiples of the lens radius");
 	pConsole->Register("vr_scope_lens_scale", &vr_scope_lens_scale, 1.f, VF_RESTRICTEDMODE, "Tuning: scales the size of the scope image on the scope lens");
 	pConsole->Register("vr_scope_lens_forward", &vr_scope_lens_forward, 0.f, VF_RESTRICTEDMODE, "Tuning: moves the scope image on the scope lens forward (positive) or back (negative), in centimetres");
+	pConsole->Register("vr_scope_lens_depth", &vr_scope_lens_depth, 0.f, VF_RESTRICTEDMODE, "Tuning: pushes the scope image deeper into the scope tube (positive) or back towards the opening (negative), in centimetres. The tube's rear opening still clips it");
+	pConsole->Register("vr_scope_image_raise", &vr_scope_image_raise, 0.f, VF_RESTRICTEDMODE, "Tuning: moves only the scope image (not the opening that clips it) up (positive) or down (negative), in multiples of the opening's radius");
+	pConsole->Register("vr_scope_image_scale", &vr_scope_image_scale, 1.f, VF_RESTRICTEDMODE, "Tuning: scales only the scope image (not the opening that clips it); above 1 the opening cuts off its edges");
+	pConsole->Register("vr_launcher_vr_zoom", &vr_launcher_vr_zoom, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "When aiming down the rocket launcher's sight (with vr_scope_2d off), magnify the whole VR view along the launcher and show the game's zoomed sight, like the binoculars");
 	pConsole->Register("vr_cinema_3d", &vr_cinema_3d, 1, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, whenever the game switches to a cinema mode (e.g. binoculars, weapon scopes or cutscenes), the cinema will render in 3D");
 	pConsole->Register("vr_scope_2d", &vr_scope_2d, 0, VF_RESTRICTEDMODE|VF_DUMPTODISK, "If enabled, bringing a scoped weapon up to your eye switches to the game's zoomed scope view on a 2D screen");
 	pConsole->Register("vr_scope_view_size", &vr_scope_view_size, 14.f, VF_RESTRICTEDMODE|VF_DUMPTODISK, "With vr_scope_2d off, scope accessories show the magnified view on their back lens. For weapons where the lens cannot be found, this is the apparent size in degrees of the view shown in front of the eye instead (2-60)");
@@ -949,6 +953,10 @@ void SCVars::ReleaseVRCVars(IConsole* pConsole)
 	pConsole->UnregisterVariable("vr_scope_lens_raise", true);
 	pConsole->UnregisterVariable("vr_scope_lens_scale", true);
 	pConsole->UnregisterVariable("vr_scope_lens_forward", true);
+	pConsole->UnregisterVariable("vr_scope_lens_depth", true);
+	pConsole->UnregisterVariable("vr_scope_image_raise", true);
+	pConsole->UnregisterVariable("vr_scope_image_scale", true);
+	pConsole->UnregisterVariable("vr_launcher_vr_zoom", true);
 	pConsole->UnregisterVariable("vr_cinema_3d", true);
 	pConsole->UnregisterVariable("vr_cinema_3d_eye_dist", true);
 	pConsole->UnregisterVariable("vr_scope_2d", true);
